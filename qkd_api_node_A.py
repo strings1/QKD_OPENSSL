@@ -32,7 +32,7 @@ def qkd_open():
 	data = request.json
 	key_handle = data.get("key_handle")
 
-	if key_handle abd key_handle in connections:
+	if key_handle and key_handle in connections:
 		return jsonify({"status": 3, 
 				"error": "key_handle already in use"}), 400
 	elif not key_handle:
@@ -48,16 +48,16 @@ def qkd_open():
 			f"{PEER_URL}/qkd_register_peer",
 			json={"key_handle": key_handle, "requested_length": requested_length}
 			)
-		if response.status code != 200:
+		if response.statuscode != 200:
 			del connections[key_handle]
 			del keys[key_handle]
 			return jsonify({"status": 4, "error": "PEER_REGISTRATION_FAILED"}), 400
 	except requests.exceptions.RequestException:
 		del connections[key_handle]
 		del keys[key_handle]
-		return jsonify({"status": 4, "error": "PEER_UNREACHABLE}), 400
+		return jsonify({"status": 4, "error": "PEER_UNREACHABLE"}), 400
 
-	return jsonify({"key_handle":})
+	return jsonify({"key_handle": key_handle, "status": 0})
 
 @app.route('/qkd_register_peer', methods=['POST'])
 def qkd_register_peer():
@@ -103,8 +103,9 @@ def qkd_close():
 	# Notify peer to close the key_handle
 	try:
 		response = requests.post(
-			f"{PEER_URL}/qkd_close_peer",
-			json={"key_handle": key_handle}
+				f"{PEER_URL}/qkd_close_peer",
+				json={"key_handle": key_handle}
+			)
 	except requests.exceptions.RequestException:
 		pass # Peer offline
 
