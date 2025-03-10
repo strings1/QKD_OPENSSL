@@ -1,7 +1,7 @@
 #== Author: Darie Alexandru ===========================================#
 # This is the implementation for the QKD API based on the structure    #
 # suggested by ETSI (Electronic Telecomunication Standard Institution).#
-# This API is for Node A(lice), that initiates key generation.         #
+# This API is for any nodes, the implementation allows scalability.    #
 #----------------------------------------------------------------------#
 # For more information about the api, feel free to consult ETSI's doc. #
 #======================================================================#
@@ -12,8 +12,8 @@ import requests
 import os
 import hashlib
 
-QKDB_IP_ADDRESS = "<BOB_IP>"
-QKDB_PORT = "<BOB_PORT>"
+QKDB_IP_ADDRESS = "PEER_ADDRESS"
+QKDB_PORT = "PEER_PORT"
 app = Flask(__name__)
 PEER_URL = "http://"+ QKDB_IP_ADDRESS + ":" + QKDB_PORT
 
@@ -40,15 +40,15 @@ def qkd_open():
 
 	# Initialization for connection and key
 	connections[key_handle] = {"local_connected": False, "peer_connected": False}
-	keys[key_handle] = generate_key(key_handle, requested_length)
+	keys[key_handle] = generate_key(key_handle)
 
 	# Norify peer to register the same key_handle
 	try:
 		response = requests.post(
 			f"{PEER_URL}/qkd_register_peer",
-			json={"key_handle": key_handle, "requested_length": requested_length}
+			json={"key_handle": key_handle, "requested_length": 256}
 			)
-		if response.statuscode != 200:
+		if response.status_code != 200:
 			del connections[key_handle]
 			del keys[key_handle]
 			return jsonify({"status": 4, "error": "PEER_REGISTRATION_FAILED"}), 400
@@ -73,6 +73,61 @@ def qkd_register_peer():
 	connections[key_handle] = {"local_connected": False, "peer_connected": False}
 	keys[key_handle] = generate_key(key_handle, requested_length)
 	return jsonify({"status": 0})
+
+@app.route('/qkd_connect_blocking', methods=['POST'])
+def qkd_connect_blocking():
+    data = request.json
+    key_handle = data.get("key_handle")
+    timeout = data.get("timeout", 5000)
+
+    if key_handle not in connections:
+        return jsonify({"status": 2, "error": "Invalid key_handle"}), 400
+
+    # Mark THIS node as connected
+    connections[key_handle]["local_connected"] = True
+
+    start_time = time.time()
+    peer_connected = False
+
+    # Poll peer until both are connected or timeout
+    while time.time() - start_time < timeout / 1000:
+        try:
+            # Notify peer to connect
+            response = requests.post(
+                f"{PEER_URL}/qkd_connect_peer",
+                json={"key_handle": key_handle}
+            )
+            if response.status_code == 200:
+                peer_connected = True
+                break
+        except requests.exceptions.RequestException:
+            pass
+        time.sleep(0.1)
+
+    if peer_connected:
+        connections[key_handle]["peer_connected"] = True
+        return jsonify({"status": 0})
+    else:
+        connections[key_handle]["local_connected"] = False
+        return jsonify({"status": 4, "error": "TIMEOUT_ERROR"}), 400
+
+@app.route('/qkd_connect_peer', methods=['POST'])
+def qkd_connect_peer():
+    key_handle = request.json.get("key_handle")
+    if key_handle not in connections:
+        return jsonify({"status": 2, "error": "Invalid key_handle"}), 400
+    connections[key_handle]["peer_connected"] = True
+    return jsonify({"status": 0})
+
+@app.route('/qkd_check_peer_connection', methods=['POST'])
+def qkd_check_peer_connection():
+    # Called by Bob to check if Alice is connected
+    key_handle = request.json.get("key_handle")
+    
+    if key_handle not in connections:
+        return jsonify({"peer_connected": False}), 400
+    
+    return jsonify({"peer_connected": connections[key_handle]["local_connected"]})
 
 @app.route('/qkd_get_key', methods=['POST'])
 def qkd_get_key():
@@ -124,4 +179,6 @@ def qkd_close_peer():
 	return jsonify({"status": 0})
 
 if __name__ == '__main__':
-	app.run(host='0.0.0.0', port=5000) # change port for QKDB
+	MY_PORT = '5000'			# Change it for your needs
+	MY_ADDRESS = '0.0.0.0'			# Change it for your needs
+	app.run(host='MY_ADDRESS, port=MY_PORT)
