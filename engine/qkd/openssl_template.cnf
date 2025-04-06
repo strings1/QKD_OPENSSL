@@ -1,0 +1,15 @@
+openssl_conf = openssl_init
+
+[openssl_init]
+engines = engine_section
+
+[engine_section]
+template = template_engine_config
+
+[template_engine_config]
+engine_id = template
+dynamic_path = /Users/alexandrudarie/Projects/QKD_OpenSSL/Proiect_CSD/QKD_GIT/engine/qkd/libtemplate.dylib
+QKD_SERVICE_URL = "http://127.0.0.1:5000"
+default_algorithms = RAND
+init = 1
+
