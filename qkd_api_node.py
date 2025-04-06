@@ -23,6 +23,8 @@ keys = {}
 def generate_key(key_handle, length=256):
 	# PLACEHOLDER PENTRU QKD. TO BE IMPLEMENTED PT ALICE / BOB
 	# [HARDWARE PROTOCOL. Vedem noi]
+	# generate a random "data" key
+	# data_key = os.urandom(length//8).hex()
 	key_bytes = hashlib.sha256(key_handle.encode()).digest()
 	key = key_bytes[:length//8].hex()
 	return key

@@ -1,0 +1,12 @@
+openssl_conf = openssl_init
+
+[openssl_init]
+engines = engine_section
+
+[engine_section]
+template = template_engine
+
+[template_engine]
+engine_id = template
+dynamic_path = /Users/alexandrudarie/Projects/QKD_OpenSSL/Proiect_CSD/QKD_GIT/engine/test/template.dylib
+init = 1

@@ -1,0 +1,33 @@
+#!/bin/zsh
+
+# Absolute paths
+ENGINE_PATH="$(pwd)/template.dylib"
+CONFIG_FILE="$(pwd)/openssl.cnf"
+
+# Compile the shared library
+gcc -fPIC -shared -o template.dylib template_engine.c \
+    -I/opt/homebrew/opt/openssl@3/include \
+    -L/opt/homebrew/opt/openssl@3/lib \
+    -lssl -lcrypto \
+    -Wl,-undefined,dynamic_lookup \
+    -DOPENSSL_API_COMPAT=30000 \
+    -std=c99
+
+# Generate config
+echo "openssl_conf = openssl_init
+
+[openssl_init]
+engines = engine_section
+
+[engine_section]
+template = template_engine
+
+[template_engine]
+engine_id = template
+dynamic_path = $ENGINE_PATH
+init = 1" > $CONFIG_FILE
+
+# Execute with forced engine priority
+OPENSSL_CONF=$CONFIG_FILE \
+OPENSSL_MODULES=$(dirname $ENGINE_PATH) \
+openssl rand -engine template -hex 1000

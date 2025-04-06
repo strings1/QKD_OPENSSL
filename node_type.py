@@ -66,15 +66,33 @@ class QKD_Node_GUI(QKD_Node):
             'Blue': '#0000FF'
         }
 
-        for _ in range(n):
-            for color in ['Red', 'Green', 'Blue']:
-                # print(f"Displaying calibration color: {color}")
-                root.configure(bg=rgb_colors[color])
-                root.update()
-                time.sleep(self.TIME_BETWEEN)
+        try:
+            for _ in range(n):
+                for color in ['Red', 'Green', 'Blue']:
+                    start_time = time.perf_counter()  # More precise timing
+                    
+                    # Update display
+                    root.configure(bg=rgb_colors[color])
+                    root.update_idletasks()  # Force immediate GUI update
+                    root.update()  # Handle all pending events
+                    
+                    # Precision sleep using remaining time
+                    elapsed = time.perf_counter() - start_time
+                    remaining = self.TIME_BETWEEN - elapsed
+                    
+                    if remaining > 0:
+                        time.sleep(remaining * 0.9)  # Account for sleep() inaccuracy
+                    else:
+                        print(f"WARNING: Frame overrun by {-remaining*1000:.1f}ms")
+                    
+                    # Verify total duration
+                    total_elapsed = time.perf_counter() - start_time
+                    if total_elapsed < self.TIME_BETWEEN * 0.95:
+                        time.sleep(self.TIME_BETWEEN - total_elapsed)
 
-        # Destroy the window after calibration
-        root.destroy()
+        finally:
+            # Ensure window cleanup even on errors
+            root.destroy()
         
     def read(self):
         print("Reading data from GUI node...")
@@ -109,14 +127,15 @@ class QKD_Node_GUI(QKD_Node):
         # display white to indicate the start of the transmission
         root.configure(bg='white')
         root.update()
-        time.sleep(self.TIME_BETWEEN)
+        time.sleep(1)
         for i in data:
             # Pick a random basis
             random_base = self.basis[os.urandom(1)[0] % 2]
             picked_bases.append(random_base)
             # Convert the bit to the corresponding color based on the chosen basis
             color = self.colors[random_base][i]
-            print(f"Displaying color: {color}")
+            #print(f"Displaying color: {color}")
+            print(color[0])
             # Update the window's background color using the RGB value
             root.configure(bg=rgb_colors[color])
             root.update()  # Update the window to reflect the color change
@@ -142,7 +161,7 @@ class QKD_Node_LED(QKD_Node):
 
 
 
-data_key = os.urandom(16//8).hex()
+data_key = os.urandom(32//8).hex()
 print(data_key)
 print(type(data_key))
 # print in binary
@@ -151,6 +170,6 @@ print(bin(int(data_key, 16))[2:])
 print(bin(int(data_key, 16))[2:].__len__())
 
 # Test the GUI node
-gui_node = QKD_Node_GUI(time_between=0.05)
-#gui_node.write(data_key)
-gui_node.calibrate(20)
+gui_node = QKD_Node_GUI(time_between=0.5)
+gui_node.write(data_key)
+# gui_node.calibrate(32)
