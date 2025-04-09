@@ -2,6 +2,7 @@
 #include <openssl/rand.h>
 #include <stdio.h>
 #include <string.h>
+#include <curl/curl.h>
 
 #define ENGINE_ID "template"
 #define ENGINE_NAME "Quantum Engine"

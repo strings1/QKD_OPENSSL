@@ -8,7 +8,7 @@ CONFIG_FILE="$(pwd)/openssl.cnf"
 gcc -fPIC -shared -o template.dylib template_engine.c \
     -I/opt/homebrew/opt/openssl@3/include \
     -L/opt/homebrew/opt/openssl@3/lib \
-    -lssl -lcrypto \
+    -lssl -lcrypto -lcurl \
     -Wl,-undefined,dynamic_lookup \
     -DOPENSSL_API_COMPAT=30000 \
     -std=c99
