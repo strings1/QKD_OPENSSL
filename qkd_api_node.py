@@ -344,7 +344,6 @@ def sift_key(key_handle):
     print(f"  Estimated QBER: {qber:.2f}%")
     print(f"  Final Sifted Key Length: {len(sifted_key_bin)} bits")
     print(f"  Sifted Key (hex, first 16): {sifted_key_hex[:16]}...")
-ƒ
     # TODO: Add error correction and privacy amplification here if needed based on QBER
 
 # --- End QKD Protocol Logic ---
