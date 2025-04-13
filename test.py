@@ -2,8 +2,8 @@ import requests
 import time
 import threading # Import threading
 
-ALICE_URL = "http://192.168.1.137:5000"
-BOB_URL = "http://192.168.1.140:5001"
+ALICE_URL = "http://192.168.1.140:5001"
+BOB_URL = "http://192.168.1.137:5000"
 POLL_INTERVAL = 5 # Seconds between checking key status
 MAX_WAIT_TIME = 600 # Maximum seconds to wait for keys (adjust based on key length/time_between)
 CONNECT_TIMEOUT = 30 # Timeout for the connect_blocking calls themselves (seconds)
