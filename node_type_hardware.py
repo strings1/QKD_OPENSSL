@@ -23,7 +23,7 @@ class QKD_Node_Hardware(QKD_Node):
 
         GPIO.setmode(GPIO.BCM)
         # Setup Sensor Pins (using settings.py imports)
-        GPIO.setup([S0, S1, S2, S3], GPIO.OUT)
+        GPIO.setup([S0, S1, S2, S3, TSC_LED], GPIO.OUT)
         GPIO.setup(OUT, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         GPIO.output(S0, GPIO.HIGH) # Set frequency scaling to 20%
         GPIO.output(S1, GPIO.LOW)
