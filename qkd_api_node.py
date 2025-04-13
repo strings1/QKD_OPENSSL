@@ -75,10 +75,10 @@ def perform_write_alice(key_handle, requested_length_bits):
 
     try:
         # 1. Calibration (Optional but recommended for hardware)
-        if isinstance(qkd_node, QKD_Node_Hardware): # Check specific type if needed
-            connections[key_handle]["status"] = "calibrating"
-            print(f"[{key_handle}] Calibrating node...")
-            qkd_node.calibrate(n=3) # Perform a short calibration
+        # if isinstance(qkd_node, QKD_Node_Hardware): # Check specific type if needed
+        #     connections[key_handle]["status"] = "calibrating"
+        #     print(f"[{key_handle}] Calibrating node...")
+        #     qkd_node.calibrate(n=3) # Perform a short calibration
 
         # 2. Generate Raw Key Data
         connections[key_handle]["status"] = "generating"
