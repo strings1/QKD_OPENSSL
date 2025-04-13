@@ -88,6 +88,7 @@ def perform_write_alice(key_handle, requested_length_bits):
         raw_key_hex = os.urandom(raw_key_bytes_needed).hex()
         connections[key_handle]["raw_key_hex_alice"] = raw_key_hex
         actual_raw_bits = len(raw_key_hex) * 4
+        connections[key_handle]["actual_raw_bits"] = actual_raw_bits
         print(f"[{key_handle}] Generated {actual_raw_bits} raw bits.")
 
         # 3. Transmit Data using QKD Node
@@ -152,16 +153,29 @@ def perform_read_bob(key_handle, requested_length_bits):
     try:
         # 1. Determine Expected Number of Bits
         raw_bits_expected = requested_length_bits * config['raw_key_multiplier']
+        print(f"[{key_handle}] perform_read_bob: Attempting to retrieve actual_raw_bits from connections dict.")
+        raw_bits_to_read = connections[key_handle].get("actual_raw_bits")
+        print(f"[{key_handle}] perform_read_bob: Retrieved actual_raw_bits = {raw_bits_to_read}")
+        if not raw_bits_to_read:
+            print(f"[{key_handle}] Warning: actual_raw_bits not found, falling back to config calculation.")
+            target_sifted_bits = connections[key_handle].get("requested_length", config['key_length_bits'])
+            raw_bits_to_read = target_sifted_bits * config.get('raw_key_multiplier', DEFAULT_RAW_KEY_MULTIPLIER)
+            print(f"[{key_handle}] perform_read_bob: Fallback calculation resulted in raw_bits_to_read = {raw_bits_to_read}")
+
+        print(f"[{key_handle}] perform_read_bob: Using raw_bits_to_read = {raw_bits_to_read} for basis generation and read.")
 
         # 2. Generate Bob's Bases RANDOMLY *before* reading
         connections[key_handle]["status"] = "generating" # Bob generates bases
         bob_bases_list = [qkd_node.basis[os.urandom(1)[0] % 2] for _ in range(raw_bits_expected)]
         connections[key_handle]["local_bases"] = "".join(bob_bases_list)
         print(f"[{key_handle}] Generated {raw_bits_expected} measurement bases.")
+        print(f"[{key_handle}] Generated {raw_bits_to_read} measurement bases.")
+
 
         # 3. Receive Data using QKD Node
         connections[key_handle]["status"] = "receiving"
         print(f"[{key_handle}] Reading {raw_bits_expected} bits from quantum channel...")
+        print(f"[{key_handle}] Reading {raw_bits_to_read} bits from quantum channel...")
         try:
 			# --- Call the implemented read method ---
             received_colors = qkd_node.read(num_bits=raw_bits_expected) # Pass expected length
@@ -384,12 +398,18 @@ def qkd_open():
     elif not key_handle:
         key_handle = os.urandom(8).hex()
 
+    raw_bits_needed_ideal = requested_length * config['raw_key_multiplier']
+    raw_key_bytes_needed = (raw_bits_needed_ideal + 7) // 8
+    actual_raw_bits = raw_key_bytes_needed * 8
+
     # Initialization for connection - This node is Alice
     connections[key_handle] = {
         "role": "alice", "local_connected": False, "peer_connected": False,
         "status": "idle", "local_bases": None, "peer_bases": None,
         "raw_key_hex_alice": None, "received_colors_bob": None,
-        "sifted_key": None, "error_message": None
+        "sifted_key": None, "error_message": None,
+        "requested_length": requested_length,
+        "actual_raw_bits": actual_raw_bits
     }
     print(f"[API /qkd_open] Initiating as Alice for key_handle {key_handle}")
 
@@ -422,6 +442,16 @@ def qkd_register_peer():
     # Use length requested by Alice, or default
     requested_length = data.get("requested_length", config.get('key_length_bits', DEFAULT_KEY_LENGTH_BITS))
 
+    print(f"[API /qkd_register_peer] Received data: {data}")
+
+    actual_raw_bits = data.get("actual_raw_bits")
+    print(f"[API /qkd_register_peer] Extracted actual_raw_bits = {actual_raw_bits} from received data.")
+
+    if actual_raw_bits is None:
+         print(f"[API /qkd_register_peer] Warning: actual_raw_bits not provided by peer. Calculating based on config.")
+         actual_raw_bits = requested_length * config.get('raw_key_multiplier', DEFAULT_RAW_KEY_MULTIPLIER)
+         print(f"[API /qkd_register_peer] Fallback calculation resulted in actual_raw_bits = {actual_raw_bits}")
+
     if not key_handle:
         return jsonify({"status": 1, "error": "Missing key_handle"}), 400
 
@@ -433,10 +463,13 @@ def qkd_register_peer():
         "role": "bob", "local_connected": False, "peer_connected": False,
         "status": "idle", "local_bases": None, "peer_bases": None,
         "raw_key_hex_alice": None, "received_colors_bob": None,
-        "sifted_key": None, "error_message": None
+        "sifted_key": None, "error_message": None,
+        "requested_length": requested_length,
+        "actual_raw_bits": actual_raw_bits
     }
     # Store requested length for Bob's use
     connections[key_handle]["requested_length"] = requested_length
+    print(f"[API /qkd_register_peer] Stored actual_raw_bits = {connections[key_handle]['actual_raw_bits']} in connections dict.")
     print(f"[API /qkd_register_peer] Registered as Bob for key_handle {key_handle}")
     return jsonify({"status": 0})
 
