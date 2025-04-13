@@ -273,21 +273,23 @@ class QKD_Node_Hardware(QKD_Node):
         if GPIO:
             print("Cleaning up GPIO...")
             GPIO.cleanup()
-            if __name__ == "__main__":
-                try:
-                    # Example usage of QKD_Node_Hardware
-                    node = QKD_Node_Hardware(time_between=1.0)  # Set time_between to 1 second
 
-                    # Perform calibration
-                    node.calibrate(n=3)  # Perform 3 calibration cycles
+if __name__ == "__main__":
+    try:
+        # Example usage of QKD_Node_Hardware
+        node = QKD_Node_Hardware(time_between=1.0)  # Set time_between to 1 second
 
-                    # Example write operation
-                    hex_data = "1A3F"  # Example hexadecimal data to transmit
-                    node.write(hex_data)
+        # Perform calibration
+        node.calibrate(n=3)  # Perform 3 calibration cycles
 
-                except Exception as e:
-                    print(f"An error occurred: {e}")
-                finally:
-                    # Ensure GPIO cleanup on exit
-                    if 'node' in locals():
-                        node.cleanup()
+        # Example write operation
+        hex_data = "1A3F"  # Example hexadecimal data to transmit
+        node.write(hex_data)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    finally:
+        # Ensure GPIO cleanup on exit
+        if 'node' in locals():
+            node.cleanup()
+            
