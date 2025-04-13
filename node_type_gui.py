@@ -4,7 +4,11 @@
 
 import time
 import os
-import tkinter as tk
+try:
+    import tkinter as tk
+except ImportError:
+    print("tkinter library not found. Ensure this code is running in an environment with tkinter installed.")
+    tk = None
 from node_type_interface import QKD_Node
 
 class QKD_Node_GUI(QKD_Node):
