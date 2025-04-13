@@ -33,9 +33,9 @@ class QKD_Node_Hardware(QKD_Node):
         GPIO.output([RED_PIN, GREEN_PIN, BLUE_PIN], GPIO.LOW) # Start with LED off
 
         self.filters = {
-            'R': (GPIO.LOW, GPIO.LOW),
-            'G': (GPIO.HIGH, GPIO.HIGH),
-            'B': (GPIO.LOW, GPIO.HIGH)
+            'Red': (GPIO.LOW, GPIO.LOW),
+            'Green': (GPIO.HIGH, GPIO.HIGH),
+            'Blue': (GPIO.LOW, GPIO.HIGH)
         }
         self.led_pins = {
             'Red': RED_PIN,
@@ -90,7 +90,7 @@ class QKD_Node_Hardware(QKD_Node):
             readings = {} # Reset readings for each sample
 
             # Read all three colors quickly
-            for color in ['R', 'G', 'B']:
+            for color in ['Red', 'Green', 'Blue']:
                 readings[color] = self._read_color(color)
 
             # Determine dominant color for this sample

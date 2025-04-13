@@ -169,9 +169,9 @@ class QKD_Node_Hardware(QKD_Node):
         self.SAMPLE_TIME = time_between / 4  # Initialize first
         self.CHANNEL_TIME = self.SAMPLE_TIME / 3  # Then calculate
         self.filters = {
-            'R': (GPIO.LOW, GPIO.LOW),
-            'G': (GPIO.HIGH, GPIO.HIGH),
-            'B': (GPIO.LOW, GPIO.HIGH)
+            'Red': (GPIO.LOW, GPIO.LOW),
+            'Green': (GPIO.HIGH, GPIO.HIGH),
+            'Blue': (GPIO.LOW, GPIO.HIGH)
         }
         self.last_color = None
 
@@ -185,7 +185,7 @@ class QKD_Node_Hardware(QKD_Node):
             readings = {}
             
             # Read all three colors quickly
-            for color in ['R', 'G', 'B']:
+            for color in ['Red', 'Green', 'Blue']:
                 readings[color] = self._read_color(color)
             
             # Determine dominant color for this sample
