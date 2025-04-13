@@ -16,7 +16,6 @@ import threading
 import argparse # For command-line arguments
 
 # --- QKD Node Imports ---
-# Assuming these files exist and contain the classes as provided previously
 try:
     from node_type_interface import QKD_Node # Base class is good practice
     from node_type_hardware import QKD_Node_Hardware
