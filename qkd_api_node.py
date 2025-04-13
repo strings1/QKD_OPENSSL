@@ -173,16 +173,6 @@ def perform_read_bob(key_handle, requested_length_bits):
 
             connections[key_handle]["received_colors_bob"] = received_colors
             print(f"[{key_handle}] Reception complete. Received {len(received_colors)} colors.")
-
-            # --- Check if peer bases already arrived ---
-            # This check happens *after* read is complete
-            conn_data = connections[key_handle]
-            if conn_data.get("peer_bases"):
-                print(f"[{key_handle}] Read complete and peer bases already received. Triggering sift.")
-                if conn_data["status"] not in ["sifting", "ready", "error"]:
-                    sift_thread = threading.Thread(target=sift_key, args=(key_handle,))
-                    sift_thread.start()
-                    
             # --- End actual read call ---
 
         except AttributeError:
