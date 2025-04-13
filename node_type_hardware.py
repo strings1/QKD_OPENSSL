@@ -75,8 +75,6 @@ class QKD_Node_Hardware(QKD_Node):
             if current_state == GPIO.HIGH and last_state == GPIO.LOW:
                 count += 1
             last_state = current_state
-            # Small delay to avoid excessive CPU usage, adjust if needed
-            time.sleep(0.00005) # 50 microseconds
         return count
 
     def read_interval(self):
