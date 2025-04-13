@@ -173,6 +173,16 @@ def perform_read_bob(key_handle, requested_length_bits):
 
             connections[key_handle]["received_colors_bob"] = received_colors
             print(f"[{key_handle}] Reception complete. Received {len(received_colors)} colors.")
+
+            # --- Check if peer bases already arrived ---
+            # This check happens *after* read is complete
+            conn_data = connections[key_handle]
+            if conn_data.get("peer_bases"):
+                print(f"[{key_handle}] Read complete and peer bases already received. Triggering sift.")
+                if conn_data["status"] not in ["sifting", "ready", "error"]:
+                    sift_thread = threading.Thread(target=sift_key, args=(key_handle,))
+                    sift_thread.start()
+                    
             # --- End actual read call ---
 
         except AttributeError:
@@ -556,7 +566,7 @@ def qkd_check_peer_connection():
 # --- Unified Endpoint for Basis Exchange ---
 @app.route('/qkd_exchange_bases', methods=['POST'])
 def qkd_exchange_bases():
-    """Called by peer to send their bases."""
+    """Called by peer to send their bases. Stores bases and triggers sifting if ready."""
     global connections
     data = request.json
     key_handle = data.get("key_handle")
@@ -570,30 +580,33 @@ def qkd_exchange_bases():
 
     conn_data = connections[key_handle]
 
-    # Basic state check - should ideally be exchanging_bases or maybe transmitting/receiving
-    if conn_data["status"] not in ["transmitting", "receiving", "exchanging_bases", "error"]:
-         print(f"[{key_handle}] Warning: Received bases in unexpected state: {conn_data['status']}")
-         # Allow proceeding if local bases are set, maybe bases arrived out of order
-         # if not conn_data.get("local_bases"):
-         #     return jsonify({"status": 5, "error": f"Not ready for bases exchange (State: {conn_data['status']})"}), 400
+    # Basic state check
+    if conn_data["status"] not in ["transmitting", "receiving", "exchanging_bases", "generating", "error"]: # Added generating
+         print(f"[{key_handle}] Warning: Received bases in potentially unexpected state: {conn_data['status']}")
 
-    print(f"[{key_handle}] Received peer bases ({len(peer_bases)} bases).")
-    conn_data["peer_bases"] = peer_bases
+    print(f"[{key_handle}] Received peer bases ({len(peer_bases)} bases). Storing.")
+    conn_data["peer_bases"] = peer_bases # Store the bases
+
     # Update status if it was transmitting/receiving
-    if conn_data["status"] in ["transmitting", "receiving"]:
+    if conn_data["status"] in ["transmitting", "receiving", "generating"]: # Added generating
         conn_data["status"] = "exchanging_bases"
 
+    # --- Trigger Key Sifting ONLY IF the node's primary data is also ready ---
+    ready_to_sift = False
+    if conn_data["role"] == "alice" and conn_data.get("local_bases"): # Alice needs her own bases
+        ready_to_sift = True
+    elif conn_data["role"] == "bob" and conn_data.get("received_colors_bob"): # Bob needs received colors
+        ready_to_sift = True
 
-    # --- Trigger Key Sifting if local bases are also ready ---
-    if conn_data.get("local_bases") and conn_data.get("peer_bases"):
+    if ready_to_sift and conn_data.get("peer_bases"): # Check peer_bases again just in case
         if conn_data["status"] not in ["sifting", "ready", "error"]: # Avoid multiple sift calls
-            print(f"[{key_handle}] Both sets of bases received. Starting sifting thread...")
+            print(f"[{key_handle}] Peer bases received and local data ready. Starting sifting thread...")
             sift_thread = threading.Thread(target=sift_key, args=(key_handle,))
             sift_thread.start()
         else:
-             print(f"[{key_handle}] Bases received, but sifting already started/completed/failed (Status: {conn_data['status']}).")
+             print(f"[{key_handle}] Peer bases received, but sifting already started/completed/failed or local data not ready (Status: {conn_data['status']}).")
     else:
-        print(f"[{key_handle}] Peer bases received. Waiting for local bases before sifting.")
+        print(f"[{key_handle}] Peer bases received. Waiting for local data ({'local_bases' if conn_data['role']=='alice' else 'received_colors_bob'}) before sifting.")
 
     return jsonify({"status": 0, "message": "Bases received."})
 
