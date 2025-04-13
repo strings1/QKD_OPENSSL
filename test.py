@@ -86,7 +86,8 @@ except Exception as e:
         requests.post(f"{BOB_URL}/qkd_close", json={"key_handle": key_handle}, timeout=5)
     exit(1)
 
-
+# --- Wait for key generation ---
+input("Press Enter to continue...") # Optional pause before polling
 # Step 3: Poll for and Get keys (Keep the polling logic from previous version)
 print(f"\nStep 3: Waiting for key generation (up to {MAX_WAIT_TIME}s)...")
 start_wait_time = time.time()

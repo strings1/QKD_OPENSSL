@@ -303,20 +303,21 @@ def sift_key(key_handle):
 
         # Compare bases bit by bit
         for i in range(len(local_bases)):
-            if local_bases[i] == peer_bases[i]:
+            if local_bases[i] == peer_bases[i]: # Bases Match!
                 basis = local_bases[i]
                 color = received_colors[i]
                 try:
-                    # Look up the bit based on the matching basis and received color
                     bit = color_to_bit[basis].get(color)
+                    # --- Add this print statement ---
+                    print(f"[{key_handle}] Sift Check (Bob) - Index {i}: LocalBasis={basis}, PeerBasis={peer_bases[i]}, DetectedColor='{color}', LookedUpBit='{bit}'")
+                    # --- End Add ---
                     if bit is not None:
                         sifted_key_bin += bit
                         match_count += 1
                     else:
-                        # Basis matched, but color was unexpected for that basis (e.g., Red in + basis)
-                        # This indicates a transmission error or detection error. Discard the bit.
+                        # This existing print is also useful
                         print(f"[{key_handle}] Sift Warning: Discarding bit {i}. Unexpected color '{color}' for basis '{basis}'.")
-                        mismatch_count += 1 # Count as effective mismatch for stats
+                        mismatch_count += 1
                 except KeyError:
                     # Should not happen if basis is always '+' or 'X'
                      print(f"[{key_handle}] Sift Error: Invalid basis '{basis}' at index {i}.")
