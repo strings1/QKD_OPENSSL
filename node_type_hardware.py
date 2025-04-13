@@ -3,7 +3,7 @@ import os # Needed for os.urandom
 from collections import Counter
 from node_type_interface import QKD_Node
 # Import sensor and LED pins from settings
-from settings import S0, S1, S2, S3, OUT, RED_PIN, GREEN_PIN, BLUE_PIN
+from settings import S0, S1, S2, S3, OUT, RED_PIN, GREEN_PIN, BLUE_PIN, TSC_LED
 try:
     import RPi.GPIO as GPIO
 except ImportError:
@@ -43,6 +43,7 @@ class QKD_Node_Hardware(QKD_Node):
             'Blue': BLUE_PIN
         }
         self.last_color = None # For sensor reading optimization
+        GPIO.output(TSC_LED, GPIO.LOW) # Turn off TSC LED
 
     def _set_led_color(self, color_name):
         """Sets the RGB LED to the specified color."""
