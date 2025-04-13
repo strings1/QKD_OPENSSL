@@ -9,7 +9,7 @@ try:
 except ImportError:
     print("RPi.GPIO library not found. Ensure this code is running on a Raspberry Pi with the library installed.")
     GPIO = None
-
+import traceback # For detailed error logging
 
 class QKD_Node_Hardware(QKD_Node):
     def __init__(self, time_between):
@@ -17,9 +17,9 @@ class QKD_Node_Hardware(QKD_Node):
             raise RuntimeError("RPi.GPIO library not available. Cannot initialize hardware node.")
 
         self.TIME_BETWEEN = time_between
-        self.SAMPLE_TIME = time_between / 4
-        # Ensure CHANNEL_TIME is calculated correctly after SAMPLE_TIME
-        self.CHANNEL_TIME = self.SAMPLE_TIME / 3
+        # --- Remove SAMPLE_TIME and adjust CHANNEL_TIME ---
+        # We read each channel for roughly 1/3 of the interval, allowing for overhead
+        self.CHANNEL_TIME = (time_between / 3.0) * 0.8 # Use 80% of 1/3 interval per channel to leave buffer
 
         GPIO.setmode(GPIO.BCM)
         # Setup Sensor Pins (using settings.py imports)
@@ -43,7 +43,7 @@ class QKD_Node_Hardware(QKD_Node):
             'Blue': BLUE_PIN
         }
         self.last_color = None # For sensor reading optimization
-        GPIO.output(TSC_LED, GPIO.LOW) # Turn off TSC LED
+        GPIO.output(TSC_LED, GPIO.LOW) # Turn off TSC LED (Ensure this pin exists in settings.py)
 
     def _set_led_color(self, color_name):
         """Sets the RGB LED to the specified color."""
@@ -51,23 +51,21 @@ class QKD_Node_Hardware(QKD_Node):
         GPIO.output([RED_PIN, GREEN_PIN, BLUE_PIN], GPIO.LOW)
         if color_name in self.led_pins:
             GPIO.output(self.led_pins[color_name], GPIO.HIGH)
-        # No 'White' signal needed anymore
-        # 'Off' is handled by turning all off initially or when 'Off' is passed
 
-    # --- Sensor Reading Logic from User's Working Example ---
     def _read_color(self, color):
         """Read a single color channel with strict timing"""
         GPIO.output(S2, self.filters[color][0])
         GPIO.output(S3, self.filters[color][1])
 
-        # Handle color transitions
+        # Handle color transitions - Keep settle time
         settle_time = 0.002 if (self.last_color != color) else 0.001
         time.sleep(settle_time)
         self.last_color = color
 
         # Time-bound reading
         count = 0
-        end_time = time.monotonic() + self.CHANNEL_TIME
+        read_start_time = time.monotonic()
+        end_time = read_start_time + self.CHANNEL_TIME
         # Count rising edges within the time window
         last_state = GPIO.input(OUT)
         while time.monotonic() < end_time:
@@ -75,79 +73,67 @@ class QKD_Node_Hardware(QKD_Node):
             if current_state == GPIO.HIGH and last_state == GPIO.LOW:
                 count += 1
             last_state = current_state
+        # Optional: print(f"    _read_color({color}): {count} pulses in {time.monotonic() - read_start_time:.4f}s")
         return count
 
+    # --- SIMPLIFIED read_interval ---
     def read_interval(self):
-        """Read all 4 samples within TIME_BETWEEN"""
-        start = time.monotonic()
-        votes = []
-        readings = {} # Store last readings for debugging
+        """Reads R, G, B once and determines the dominant color."""
+        interval_start_time = time.monotonic()
+        readings = {}
 
-        for _ in range(4):
-            sample_start = time.monotonic()
-            readings = {} # Reset readings for each sample
+        # Read all three colors sequentially
+        for color in ['Red', 'Green', 'Blue']:
+            readings[color] = self._read_color(color)
 
-            # Read all three colors quickly
-            for color in ['Red', 'Green', 'Blue']:
-                readings[color] = self._read_color(color)
+        # Determine dominant color for this interval
+        max_reading = 0 # Threshold for detection
+        dominant_color = 'Off' # Default if nothing detected
 
-            # Determine dominant color for this sample
-            # Find the color with the maximum reading, default to 'Off' if all are 0 or negative
-            max_reading = 0 # Use 0 as threshold, any pulse counts
-            dominant_color = 'Off'
-            # Sort by reading descending to handle ties (e.g., prefer R over G if R=G) - order matters
-            sorted_readings = sorted(readings.items(), key=lambda item: item[1], reverse=True)
-            if sorted_readings and sorted_readings[0][1] > max_reading:
-                 dominant_color = sorted_readings[0][0] # Get the color name with the highest reading
+        # Sort by reading descending to handle ties (e.g., prefer R over G if R=G)
+        sorted_readings = sorted(readings.items(), key=lambda item: item[1], reverse=True)
 
-            votes.append(dominant_color)
+        if sorted_readings and sorted_readings[0][1] > max_reading:
+             dominant_color = sorted_readings[0][0] # Get the color name with the highest reading
 
-            # Enforce sample timing
-            elapsed = time.monotonic() - sample_start
-            if elapsed < self.SAMPLE_TIME:
-                time.sleep(self.SAMPLE_TIME - elapsed)
+        # Debug print
+        actual_duration = time.monotonic() - interval_start_time
+        # print(f"Detected: {dominant_color} | Readings: {readings} | Actual Interval: {actual_duration:.3f}s")
 
-        # Final majority vote
-        if not votes or all(v == 'Off' for v in votes):
-             majority = 'Off' # No color detected or only 'Off' votes
-        else:
-             # Filter out 'Off' votes before determining the most common color
-             filtered_votes = [v for v in votes if v != 'Off']
-             if not filtered_votes:
-                 majority = 'Off'
-             else:
-                 # Use Counter on the filtered list
-                 majority = Counter(filtered_votes).most_common(1)[0][0]
-
-        # Debug print - Consider reducing frequency or removing in production
-        print(f"Detected: {majority} | Samples: {votes} | Last Readings: {readings} | "
-              f"Actual Interval: {time.monotonic() - start:.3f}s")
-        return majority # Return the detected color
-    # --- End Sensor Reading Logic ---
+        return dominant_color
+    # --- End SIMPLIFIED read_interval ---
 
     def read(self, num_bits):
         """
-        Reads a specified number of bits/colors directly without start/stop signals.
+        Reads a specified number of bits/colors directly using the simplified read_interval.
         """
         detected_colors = []
         intervals_read = 0
 
         print(f"[{os.getpid()}] Read: Starting direct read for {num_bits} bits...")
         try:
+            # Optional short delay before starting to sync with Alice's potential delay
+            time.sleep(self.TIME_BETWEEN / 2)
+
             # Read Data Bits directly
             while intervals_read < num_bits:
                 cycle_start = time.monotonic()
+
+                # --- Call the simplified read_interval ---
                 detected_color = self.read_interval()
+                # --- End call ---
+
                 detected_colors.append(detected_color)
                 intervals_read += 1
 
-                # Maintain exact interval timing
+                # Maintain overall interval timing
                 elapsed = time.monotonic() - cycle_start
-                if elapsed < self.TIME_BETWEEN:
-                    time.sleep(self.TIME_BETWEEN - elapsed)
+                remaining = self.TIME_BETWEEN - elapsed
+                if remaining > 0:
+                    time.sleep(remaining)
                 else:
-                    print(f"[{os.getpid()}] Read Warning: Interval overrun by {elapsed - self.TIME_BETWEEN:.3f}s at bit {intervals_read}")
-
+                    # Log overrun, this should happen less often now
+                    print(f"[{os.getpid()}] Read Warning: Interval overrun by {-remaining:.3f}s at bit {intervals_read}")
 
             print(f"[{os.getpid()}] Read: Finished. Detected {len(detected_colors)} colors.")
             return detected_colors
@@ -157,10 +143,9 @@ class QKD_Node_Hardware(QKD_Node):
             return None # Indicate interruption
         except Exception as e:
             print(f"[{os.getpid()}] Read Error: An exception occurred during read: {e}")
-            # Consider logging the full traceback here for debugging
-            # import traceback
-            # traceback.print_exc()
+            print(traceback.format_exc()) # Print full traceback for errors
             return None # Indicate error
+
 
 
     def write(self, hex_data):
