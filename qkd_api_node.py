@@ -238,100 +238,91 @@ def sift_key(key_handle):
     local_bases = conn_data.get("local_bases")
     peer_bases = conn_data.get("peer_bases")
     role = conn_data.get("role")
+    raw_key_hex_alice = conn_data.get("raw_key_hex_alice") # Get potential Alice key
+    received_colors_bob = conn_data.get("received_colors_bob") # Get potential Bob colors
 
     if not all([local_bases, peer_bases, role]):
-        conn_data["status"] = "error"
-        conn_data["error_message"] = "Missing data for sifting (bases or role)."
-        print(f"[{key_handle}] Error: Missing data for sifting.")
-        return
-
-    sifted_key_bin = ""
-    match_count = 0
-    mismatch_count = 0 # Count basis mismatches
-
-    # Ensure bases have the same length before proceeding
-    if len(local_bases) != len(peer_bases):
-        conn_data["status"] = "error"
-        conn_data["error_message"] = f"Basis length mismatch: Local={len(local_bases)}, Peer={len(peer_bases)}"
+        conn_data["status"] = "error"; conn_data["error_message"] = "Missing base or role data for sifting."
         print(f"[{key_handle}] Error: {conn_data['error_message']}")
         return
 
+    # --- Determine the absolute minimum comparison length based on ALL relevant data ---
+    try:
+        lengths = [len(local_bases), len(peer_bases)]
+        if role == "alice":
+            if not raw_key_hex_alice: raise ValueError("Alice missing raw key hex")
+            lengths.append(len(raw_key_hex_alice) * 4) # Alice needs raw key bits
+        elif role == "bob":
+            if not received_colors_bob: raise ValueError("Bob missing received colors")
+            lengths.append(len(received_colors_bob)) # Bob needs received colors
+        else:
+             raise ValueError(f"Unknown role: {role}")
+
+        min_len = min(lengths)
+        print(f"[{key_handle}] Determined minimum comparison length: {min_len} (based on available data lengths: {lengths})")
+
+    except (TypeError, ValueError, KeyError) as e:
+        conn_data["status"] = "error"; conn_data["error_message"] = f"Cannot determine comparison length or missing critical data: {e}"
+        print(f"[{key_handle}] Error: {conn_data['error_message']}")
+        return
+    # --- End minimum length calculation ---
+
+
+    sifted_key_bin = ""
+    match_count = 0
+    mismatch_count = 0
+
     # Alice uses her raw key bits
     if role == "alice":
-        raw_key_hex = conn_data.get("raw_key_hex_alice")
-        if not raw_key_hex:
-            conn_data["status"] = "error"; conn_data["error_message"] = "Alice missing raw key for sifting."
-            print(f"[{key_handle}] Error: {conn_data['error_message']}")
-            return
+        # raw_key_hex_alice already fetched and checked implicitly by length calculation
         try:
-            # Ensure binary string has correct length, padding with leading zeros if needed
-            expected_len = len(local_bases)
-            raw_key_bin = bin(int(raw_key_hex, 16))[2:].zfill(len(raw_key_hex) * 4)
-            if len(raw_key_bin) != expected_len:
-                 # This might happen if raw_key_hex had leading zeros stripped implicitly
-                 # Or if multiplier calculation was off. Pad or error.
-                 # Let's pad assuming the hex was correct but bin() removed leading zeros
-                 raw_key_bin = raw_key_bin.zfill(expected_len)
-                 if len(raw_key_bin) != expected_len: # Still wrong? Error.
-                     raise ValueError(f"Raw key binary length ({len(raw_key_bin)}) doesn't match basis length ({expected_len}) after padding.")
-
+            # Convert hex to bin, ensuring it's AT LEAST min_len bits long for indexing
+            raw_key_bin_full = bin(int(raw_key_hex_alice, 16))[2:].zfill(len(raw_key_hex_alice) * 4)
+            if len(raw_key_bin_full) < min_len:
+                 # This should not happen if min_len calculation was correct
+                 raise ValueError(f"Internal Error: Raw key binary length ({len(raw_key_bin_full)}) is less than calculated min_len ({min_len}).")
         except ValueError as e:
-             conn_data["status"] = "error"; conn_data["error_message"] = f"Invalid raw key hex or length mismatch: {e}"
+             conn_data["status"] = "error"; conn_data["error_message"] = f"Invalid raw key hex: {e}"
              print(f"[{key_handle}] Error: {conn_data['error_message']}")
              return
 
-        # Compare bases bit by bit
-        for i in range(len(local_bases)):
+        # Compare bases bit by bit UP TO the calculated min_len
+        for i in range(min_len):
             if local_bases[i] == peer_bases[i]:
-                sifted_key_bin += raw_key_bin[i]
+                sifted_key_bin += raw_key_bin_full[i] # Use the bit from the full raw key
                 match_count += 1
             else:
                 mismatch_count += 1
 
     # Bob uses his interpreted received colors
     elif role == "bob":
-        received_colors = conn_data.get("received_colors_bob")
-        if not received_colors:
-            conn_data["status"] = "error"; conn_data["error_message"] = "Bob missing received colors for sifting."
-            print(f"[{key_handle}] Error: {conn_data['error_message']}")
-            return
+        # received_colors_bob already fetched and checked implicitly by length calculation
+        if len(received_colors_bob) < min_len:
+             # This should not happen if min_len calculation was correct
+             print(f"[{key_handle}] Internal Warning: Bob received fewer colors ({len(received_colors_bob)}) than calculated min_len ({min_len}). Logic error likely.")
+             # The loop range(min_len) will prevent index errors anyway
 
-        if len(received_colors) != len(local_bases):
-             conn_data["status"] = "error"; conn_data["error_message"] = f"Length mismatch: Bob received {len(received_colors)} colors, expected {len(local_bases)}"
-             print(f"[{key_handle}] Error: {conn_data['error_message']}")
-             return
-
-        # Define the inverse mapping: (Basis, Color) -> Bit
-        # This MUST match the encoding scheme in QKD_Node.colors
         color_to_bit = {
             '+': {'Blue': '0', 'Green': '1'}, # Basis +
             'X': {'Blue': '0', 'Red': '1'}    # Basis X
-            # Add handling for 'Off' or unexpected colors if read() can return them
         }
 
-        # Compare bases bit by bit
-        for i in range(len(local_bases)):
+        # Compare bases bit by bit UP TO the calculated min_len
+        for i in range(min_len):
             if local_bases[i] == peer_bases[i]: # Bases Match!
                 basis = local_bases[i]
-                color = received_colors[i]
-                try:
-                    bit = color_to_bit[basis].get(color)
-                    # --- Add this print statement ---
-                    print(f"[{key_handle}] Sift Check (Bob) - Index {i}: LocalBasis={basis}, PeerBasis={peer_bases[i]}, DetectedColor='{color}', LookedUpBit='{bit}'")
-                    # --- End Add ---
-                    if bit is not None:
-                        sifted_key_bin += bit
-                        match_count += 1
-                    else:
-                        # This existing print is also useful
-                        print(f"[{key_handle}] Sift Warning: Discarding bit {i}. Unexpected color '{color}' for basis '{basis}'.")
-                        mismatch_count += 1
-                except KeyError:
-                    # Should not happen if basis is always '+' or 'X'
-                     print(f"[{key_handle}] Sift Error: Invalid basis '{basis}' at index {i}.")
-                     mismatch_count += 1
+                color = received_colors_bob[i] # Use Bob's received color at index i
+                bit = color_to_bit.get(basis, {}).get(color)
+
+                if bit is not None:
+                    sifted_key_bin += bit
+                else:
+                    random_bit = str(os.urandom(1)[0] % 2)
+                    sifted_key_bin += random_bit
+                    print(f"[{key_handle}] Sift Warning: Basis '{basis}' matched, but received unexpected color '{color}' at index {i}. Assigning random bit '{random_bit}'. Error correction needed.")
+
+                match_count += 1
             else:
-                # Bases don't match, discard the bit
                 mismatch_count += 1
 
     else:
@@ -355,13 +346,18 @@ def sift_key(key_handle):
 
 
     conn_data["sifted_key"] = sifted_key_hex
-    conn_data["status"] = "ready" # Key is ready!
-    qber = (mismatch_count / len(local_bases)) * 100 if len(local_bases) > 0 else 0
+    conn_data["status"] = "ready" # Key is ready for reconciliation/amplification
+    # Calculate QBER based on mismatches *within the matching bases* (more complex, often estimated differently or during reconciliation)
+    # Simple QBER estimate based on basis mismatch rate:
+    total_compared = match_count + mismatch_count
+    qber_basis_mismatch = (mismatch_count / total_compared) * 100 if total_compared > 0 else 0
+
     print(f"[{key_handle}] Sifting complete.")
-    print(f"  Basis Matches: {match_count}/{len(local_bases)}")
-    print(f"  Basis Mismatches (Discarded): {mismatch_count}/{len(local_bases)}")
-    print(f"  Estimated QBER: {qber:.2f}%")
-    print(f"  Final Sifted Key Length: {len(sifted_key_bin)} bits")
+    print(f"  Basis Comparison Length: {min_len}")
+    print(f"  Basis Matches (Kept Bits): {match_count}")
+    print(f"  Basis Mismatches (Discarded Bits): {mismatch_count}")
+    print(f"  Estimated QBER (Basis Mismatch Rate): {qber_basis_mismatch:.2f}%") # Note: This isn't the final bit error rate
+    print(f"  Raw Sifted Key Length: {len(sifted_key_bin)} bits")
     print(f"  Sifted Key (hex, first 16): {sifted_key_hex[:16]}...")
     # TODO: Add error correction and privacy amplification here if needed based on QBER
 
