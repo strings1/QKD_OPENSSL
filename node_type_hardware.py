@@ -94,7 +94,8 @@ class QKD_Node_Hardware(QKD_Node):
         sorted_readings = sorted(readings.items(), key=lambda item: item[1], reverse=True)
 
         if sorted_readings and sorted_readings[0][1] > max_reading:
-             dominant_color = sorted_readings[0][0] # Get the color name with the highest reading
+            print("Red:", readings['Red'], "Green:", readings['Green'], "Blue:", readings['Blue'])
+            dominant_color = sorted_readings[0][0] # Get the color name with the highest reading
 
         # Debug print
         actual_duration = time.monotonic() - interval_start_time
