@@ -110,7 +110,7 @@ def perform_write_alice(key_handle, requested_length_bits):
                 sift_thread.start()
 
         # 4. Send Bases to Bob (after transmission is fully done)
-        connections[key_handle]["status"] = "exchanging_bases"
+        # connections[key_handle]["status"] = "exchanging_bases"
         print(f"[{key_handle}] Sending bases to Bob...")
         try:
             response = requests.post(
@@ -200,7 +200,7 @@ def perform_read_bob(key_handle, requested_length_bits):
 
 
         # 4. Send Bases to Alice (after reception is fully done)
-        connections[key_handle]["status"] = "exchanging_bases"
+        # connections[key_handle]["status"] = "exchanging_bases"
         print(f"[{key_handle}] Sending bases to Alice...")
         try:
             response = requests.post(
