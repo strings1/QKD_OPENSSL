@@ -114,7 +114,7 @@ class QKD_Node_Hardware(QKD_Node):
         print(f"[{os.getpid()}] Read: Starting direct read for {num_bits} bits...")
         try:
             # Optional short delay before starting to sync with Alice's potential delay
-            time.sleep(self.TIME_BETWEEN / 2)
+            #time.sleep(self.TIME_BETWEEN / 2)
 
             # Read Data Bits directly
             while intervals_read < num_bits:
@@ -159,8 +159,8 @@ class QKD_Node_Hardware(QKD_Node):
         try:
             data = bin(int(hex_data, 16))[2:].zfill(len(hex_data) * 4)
         except ValueError:
-             print(f"Error: Invalid hex data provided: {hex_data}")
-             return []
+            print(f"Error: Invalid hex data provided: {hex_data}")
+            return []
 
         picked_bases = []
         print(f"  Will transmit {len(data)} bits.")
@@ -168,7 +168,7 @@ class QKD_Node_Hardware(QKD_Node):
         try:
             # No Start Signal needed
             # Optional short delay before starting data transmission
-            time.sleep(self.TIME_BETWEEN / 2)
+            # time.sleep(self.TIME_BETWEEN / 2)
 
             for i, bit in enumerate(data):
                 start_time = time.perf_counter() # Use perf_counter for timing
