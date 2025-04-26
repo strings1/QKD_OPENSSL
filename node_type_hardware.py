@@ -87,7 +87,7 @@ class QKD_Node_Hardware(QKD_Node):
             readings[color] = self._read_color(color)
 
         # Determine dominant color for this interval
-        max_reading = 0 # Threshold for detection
+        max_reading = 2 # Threshold for detection
         dominant_color = 'Off' # Default if nothing detected
 
         # Sort by reading descending to handle ties (e.g., prefer R over G if R=G)
@@ -132,7 +132,6 @@ class QKD_Node_Hardware(QKD_Node):
                 if remaining > 0:
                     time.sleep(remaining)
                 else:
-                    # Log overrun, this should happen less often now
                     print(f"[{os.getpid()}] Read Warning: Interval overrun by {-remaining:.3f}s at bit {intervals_read}")
 
             print(f"[{os.getpid()}] Read: Finished. Detected {len(detected_colors)} colors.")
