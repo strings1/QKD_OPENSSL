@@ -178,7 +178,7 @@ class QKD_Node_Hardware(QKD_Node):
                 color_to_display = self.colors[random_base][bit]
 
                 # Debug print - check if this appears in Alice's log
-                print(f"  Bit {i+1}/{len(data)}: {bit}, Basis: {random_base}, Color: {color_to_display}")
+                # print(f"  Bit {i+1}/{len(data)}: {bit}, Basis: {random_base}, Color: {color_to_display}")
                 self._set_led_color(color_to_display) # This should light up the LED
 
                 # Use precise timing, accounting for the time taken by GPIO calls etc.
