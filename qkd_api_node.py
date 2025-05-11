@@ -7,13 +7,14 @@
 # For more information about the api, feel free to consult ETSI's doc. #
 #======================================================================#
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template_string
 import time
 import requests
 import os
 import hashlib
 import threading
 import argparse # For command-line arguments
+from aes.aes import AES
 
 # --- QKD Node Imports ---
 try:
@@ -227,7 +228,6 @@ def perform_read_bob(key_handle, requested_length_bits):
         print(f"[{key_handle}] Error during Bob QKD protocol: {e}")
         # Consider notifying Alice about the error if possible
 
-
 def sift_key(key_handle):
     """Compares bases and generates the sifted key. Called by /qkd_exchange_bases."""
     global connections
@@ -409,6 +409,7 @@ def qkd_open():
     # Return immediately, QKD process starts after connection
     return jsonify({"key_handle": key_handle, "status": 0})
 
+
 @app.route('/qkd_register_peer', methods=['POST'])
 def qkd_register_peer():
     # Called by Alice on Bob
@@ -554,6 +555,7 @@ def qkd_connect_peer():
     # If this node is waiting in connect_blocking's loop, this helps it break
     return jsonify({"status": 0})
 
+
 @app.route('/qkd_check_peer_connection', methods=['POST'])
 def qkd_check_peer_connection():
     # Called by peer during connect_blocking handshake to see if this node is ready
@@ -566,7 +568,6 @@ def qkd_check_peer_connection():
     is_ready = connections[key_handle].get("local_connected", False)
     # print(f"[API /qkd_check_peer_connection] Peer check for {key_handle}. This node ready: {is_ready}")
     return jsonify({"peer_ready": is_ready})
-
 
 # --- Unified Endpoint for Basis Exchange ---
 @app.route('/qkd_exchange_bases', methods=['POST'])
@@ -691,6 +692,88 @@ def qkd_close_peer():
 
 # --- End API Endpoints ---
 
+
+# --- Classical Communication MISC ---
+# /send_encrypted_message to send a message
+# The peer receives and decrypts it at /receive_encrypted_message
+# received messages at http://<raspberry_ip>:<port>/messages
+
+received_messages = []  # Messages to be displayed
+
+@app.route('/send_encrypted_message', methods=['POST'])
+def send_encrypted_message():
+    global connections, config
+    data = request.json
+    key_handle = data.get("key_handle")
+    message = data.get("message")
+    if not key_handle or not message:
+        return jsonify({"status": 1, "error": "Missing key_handle or message"}), 400
+    if key_handle not in connections:
+        return jsonify({"status": 2, "error": "Invalid key_handle"}), 400
+    conn_info = connections[key_handle]
+    if conn_info.get("status") != "ready" or not conn_info.get("sifted_key"):
+        return jsonify({"status": 3, "error": "Key not ready"}), 400
+
+    key_bytes = bytes.fromhex(conn_info["sifted_key"][:32])  # AES-128
+    msg_bytes = message.encode("utf-8")
+    if len(msg_bytes) > 16:
+        msg_bytes = msg_bytes[:16]
+    elif len(msg_bytes) < 16:
+        msg_bytes = msg_bytes.ljust(16, b'\0')
+    ciphertext = AES.encrypt(msg_bytes, key_bytes)
+    ciphertext_hex = ciphertext.hex()
+
+    # Send to peer
+    try:
+        resp = requests.post(
+            f"{config['peer_url']}/receive_encrypted_message",
+            json={"key_handle": key_handle, "ciphertext": ciphertext_hex},
+            timeout=5
+        )
+        resp.raise_for_status()
+    except Exception as e:
+        return jsonify({"status": 4, "error": f"Failed to send to peer: {e}"}), 500
+
+    return jsonify({"status": 0, "ciphertext": ciphertext_hex})
+
+
+@app.route('/receive_encrypted_message', methods=['POST'])
+def receive_encrypted_message():
+    global connections, received_messages
+    data = request.json
+    key_handle = data.get("key_handle")
+    ciphertext_hex = data.get("ciphertext")
+    if not key_handle or not ciphertext_hex:
+        return jsonify({"status": 1, "error": "Missing key_handle or ciphertext"}), 400
+    if key_handle not in connections:
+        return jsonify({"status": 2, "error": "Invalid key_handle"}), 400
+    conn_info = connections[key_handle]
+    if conn_info.get("status") != "ready" or not conn_info.get("sifted_key"):
+        return jsonify({"status": 3, "error": "Key not ready"}), 400
+
+    key_bytes = bytes.fromhex(conn_info["sifted_key"][:32])
+    ciphertext = bytes.fromhex(ciphertext_hex)
+    try:
+        plaintext = AES.decrypt(ciphertext, key_bytes).rstrip(b'\0').decode("utf-8")
+    except Exception as e:
+        return jsonify({"status": 4, "error": f"Decryption failed: {e}"}), 400
+
+    received_messages.append(plaintext)
+    print(f"Received message: {plaintext}")
+    return jsonify({"status": 0, "message": plaintext})
+
+
+@app.route('/messages', methods=['GET'])
+def messages():
+    global received_messages
+    html = "<h1>Received Messages</h1><ul>"
+    for msg in received_messages:
+        html += f"<li>{msg}</li>"
+    html += "</ul>"
+    return render_template_string(html)
+
+# --- End of Classical Communication MISC ---
+
 # --- Main Execution ---
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="QKD Node API Server (BB84)")
@@ -751,6 +834,8 @@ if __name__ == '__main__':
             print("Cleaning up GPIO...")
             qkd_node.cleanup()
         print("Server stopped.")
+
+
         
 # python qkd_api_node.py --port 5001 --peer-host 192.168.1.233 --peer-port 5000 --node-type hardware --time-between 0.5
-#sudo python qkd_api_node.py --port 5000 --peer-host 192.168.1.141 --peer-port 5001 --node-type hardware --time-between 0.1 --key-len 128 --raw-mult 1
+# sudo python qkd_api_node.py --port 5000 --peer-host 192.168.1.141 --peer-port 5001 --node-type hardware --time-between 0.1 --key-len 128 --raw-mult 1
