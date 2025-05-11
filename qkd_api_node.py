@@ -714,7 +714,14 @@ def send_encrypted_message():
     if conn_info.get("status") != "ready" or not conn_info.get("sifted_key"):
         return jsonify({"status": 3, "error": "Key not ready"}), 400
 
-    key_bytes = bytes.fromhex(conn_info["sifted_key"][:32])  # AES-128
+    if len(conn_info["sifted_key"]) < 32:
+    # Pad with zeros if needed
+        padded_key = conn_info["sifted_key"].ljust(32, '0')
+    else:
+        padded_key = conn_info["sifted_key"][:32]
+    key_bytes = bytes.fromhex(padded_key)
+
+
     msg_bytes = message.encode("utf-8")
     if len(msg_bytes) > 16:
         msg_bytes = msg_bytes[:16]
