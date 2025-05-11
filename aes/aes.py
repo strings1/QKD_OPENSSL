@@ -1,4 +1,4 @@
-from gf2_math import GF2Element
+from .gf2_math import GF2Element
 
 class AES:
     S_BOX = [
