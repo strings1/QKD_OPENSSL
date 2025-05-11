@@ -177,6 +177,7 @@ else:
 
 # Step 4: Close connection
 if key_handle:
+    input("Press Enter to close connection and exit...")
     print("\nStep 4: Closing connection...")
     try:
         requests.post(f"{ALICE_URL}/qkd_close", json={"key_handle": key_handle}, timeout=5)
