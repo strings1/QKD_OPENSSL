@@ -19,7 +19,7 @@ import argparse # For command-line arguments
 try:
     from node_type_interface import QKD_Node # Base class is good practice
     from node_type_hardware import QKD_Node_Hardware
-    from node_type_gui import QKD_Node_GUI
+    # from node_type_gui import QKD_Node_GUI
 except ImportError as e:
     print(f"Error importing node types: {e}. Make sure node_type_*.py files are present.")
     exit(1)
