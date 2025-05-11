@@ -5,6 +5,8 @@
 from abc import ABC, abstractmethod
 import os
 
+data_key = os.urandom(16)
+
 class QKD_Node(ABC):
     basis = ['+', 'X']
     colors = {

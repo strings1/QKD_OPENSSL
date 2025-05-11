@@ -1,14 +1,21 @@
 import time
 import os # Needed for os.urandom
 from collections import Counter
+from PIL import Image, ImageDraw, ImageFont
 from node_type_interface import QKD_Node
 # Import sensor and LED pins from settings
 from settings import S0, S1, S2, S3, OUT, RED_PIN, GREEN_PIN, BLUE_PIN, TSC_LED
 try:
+    import busio
+    import board
     import RPi.GPIO as GPIO
+    import adafruit_ssd1306
 except ImportError:
-    print("RPi.GPIO library not found. Ensure this code is running on a Raspberry Pi with the library installed.")
+    print("One or more library not found. Ensure this code is running on a Raspberry Pi with the library installed.")
     GPIO = None
+    busio = None
+    board = None
+    adafruit_ssd1306 = None
 import traceback # For detailed error logging
 
 class QKD_Node_Hardware(QKD_Node):
@@ -44,6 +51,14 @@ class QKD_Node_Hardware(QKD_Node):
         }
         self.last_color = None # For sensor reading optimization
         GPIO.output(TSC_LED, GPIO.LOW) # Turn off TSC LED (Ensure this pin exists in settings.py)
+        try:
+            self.i2c = busio.I2C(board.SCL, board.SDA)
+            self.oled = adafruit_ssd1306.SSD1306_I2C(128, 64, self.i2c)
+            self.oled.fill(0)
+            self.oled.show()
+        except Exception as e:
+            print(f"OLED init error: {e}")
+            self.oled = None
 
     def _set_led_color(self, color_name):
         """Sets the RGB LED to the specified color."""
@@ -258,17 +273,40 @@ class QKD_Node_Hardware(QKD_Node):
             print("Cleaning up GPIO...")
             GPIO.cleanup()
 
+    def screen_Display(self, message="My name is Alex"):
+        """Displays a message on the OLED screen."""
+        if not self.oled:
+            print("OLED not initialized.")
+            return
+        try:
+            image = Image.new("1", (self.oled.width, self.oled.height))
+            draw = ImageDraw.Draw(image)
+            font = ImageFont.load_default()
+            (font_width, font_height) = draw.textsize(message, font=font)
+            x = (self.oled.width - font_width) // 2
+            y = (self.oled.height - font_height) // 2
+            draw.text((x, y), message, font=font, fill=255)
+            self.oled.image(image)
+            self.oled.show()
+            print(f"OLED: Displayed message '{message}'")
+        except Exception as e:
+            print(f"OLED display error: {e}")
+        
 if __name__ == "__main__":
     try:
-        # Example usage of QKD_Node_Hardware
+        # Example usage of QKD_Node_Hardware - WRITE
+        # node = QKD_Node_Hardware(time_between=1.0)  # Set time_between to 1 second
+
+        # # Perform calibration
+        # node.calibrate(n=3)  # Perform 3 calibration cycles
+
+        # # Example write operation
+        # hex_data = "1A3F"  # Example hexadecimal data to transmit
+        # node.write(hex_data)
+
+        # Example usage of QKD_Node_Hardware - DISPLAY
         node = QKD_Node_Hardware(time_between=1.0)  # Set time_between to 1 second
-
-        # Perform calibration
-        node.calibrate(n=3)  # Perform 3 calibration cycles
-
-        # Example write operation
-        hex_data = "1A3F"  # Example hexadecimal data to transmit
-        node.write(hex_data)
+        node.screen_Display("Hello, QKD!")
 
     except Exception as e:
         print(f"An error occurred: {e}")

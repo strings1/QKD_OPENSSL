@@ -121,7 +121,7 @@ class QKD_Node_GUI(QKD_Node):
         root.destroy()
 
 # Test the GUI node
-from node_type_interface import data_key
-gui_node = QKD_Node_GUI(time_between=0.5)
+data_key = "0x1234567890abcdef"  # Example hex data
+gui_node = QKD_Node_GUI(time_between=0.1)
 gui_node.write(data_key)
 # gui_node.calibrate(32)
