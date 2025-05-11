@@ -753,3 +753,4 @@ if __name__ == '__main__':
         print("Server stopped.")
         
 # python qkd_api_node.py --port 5001 --peer-host 192.168.1.233 --peer-port 5000 --node-type hardware --time-between 0.5
+#sudo python qkd_api_node.py --port 5000 --peer-host 192.168.1.141 --peer-port 5001 --node-type hardware --time-between 0.1 --key-len 128 --raw-mult 1

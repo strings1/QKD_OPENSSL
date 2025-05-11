@@ -30,7 +30,7 @@ class QKD_Node_Hardware(QKD_Node):
 
         GPIO.setmode(GPIO.BCM)
         # Setup Sensor Pins (using settings.py imports)
-        GPIO.setup([S0, S1, S2, S3, TSC_LED], GPIO.OUT)
+        GPIO.setup([S0, S1, S2, S3, TCS_LED], GPIO.OUT)
         GPIO.setup(OUT, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         GPIO.output(S0, GPIO.HIGH) # Set frequency scaling to 20%
         GPIO.output(S1, GPIO.LOW)
@@ -50,7 +50,7 @@ class QKD_Node_Hardware(QKD_Node):
             'Blue': BLUE_PIN
         }
         self.last_color = None # For sensor reading optimization
-        GPIO.output(TCS_LED, GPIO.LOW) # Turn off TSC LED (Ensure this pin exists in settings.py)
+        GPIO.output(TCS_LED, GPIO.LOW) # Turn off TCS LED (Ensure this pin exists in settings.py)
         try:
             self.i2c = busio.I2C(board.SCL, board.SDA)
             self.oled = adafruit_ssd1306.SSD1306_I2C(128, 64, self.i2c)
