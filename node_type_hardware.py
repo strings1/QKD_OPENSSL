@@ -4,7 +4,7 @@ from collections import Counter
 from PIL import Image, ImageDraw, ImageFont
 from node_type_interface import QKD_Node
 # Import sensor and LED pins from settings
-from settings import S0, S1, S2, S3, OUT, RED_PIN, GREEN_PIN, BLUE_PIN, TSC_LED
+from settings import S0, S1, S2, S3, OUT, RED_PIN, GREEN_PIN, BLUE_PIN, TCS_LED
 try:
     import busio
     import board
@@ -50,7 +50,7 @@ class QKD_Node_Hardware(QKD_Node):
             'Blue': BLUE_PIN
         }
         self.last_color = None # For sensor reading optimization
-        GPIO.output(TSC_LED, GPIO.LOW) # Turn off TSC LED (Ensure this pin exists in settings.py)
+        GPIO.output(TCS_LED, GPIO.LOW) # Turn off TSC LED (Ensure this pin exists in settings.py)
         try:
             self.i2c = busio.I2C(board.SCL, board.SDA)
             self.oled = adafruit_ssd1306.SSD1306_I2C(128, 64, self.i2c)
