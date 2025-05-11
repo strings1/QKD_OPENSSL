@@ -7,15 +7,28 @@ from node_type_interface import QKD_Node
 from settings import S0, S1, S2, S3, OUT, RED_PIN, GREEN_PIN, BLUE_PIN, TCS_LED
 try:
     import busio
+except ImportError:
+    print("busio library not found. Ensure this code is running on a Raspberry Pi with the library installed.")
+    busio = None
+
+try:
     import board
+except ImportError:
+    print("board library not found. Ensure this code is running on a Raspberry Pi with the library installed.")
+    board = None
+
+try:
     import RPi.GPIO as GPIO
+except ImportError:
+    print("RPi.GPIO library not found. Ensure this code is running on a Raspberry Pi with the library installed.")
+    GPIO = None
+
+try:
     import adafruit_ssd1306
 except ImportError:
-    print("One or more library not found. Ensure this code is running on a Raspberry Pi with the library installed.")
-    GPIO = None
-    busio = None
-    board = None
+    print("adafruit_ssd1306 library not found. Ensure this code is running on a Raspberry Pi with the library installed.")
     adafruit_ssd1306 = None
+    
 import traceback # For detailed error logging
 
 class QKD_Node_Hardware(QKD_Node):
