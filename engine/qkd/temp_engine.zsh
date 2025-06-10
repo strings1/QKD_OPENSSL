@@ -62,15 +62,13 @@ CURL_CFLAGS=$(pkg-config --cflags libcurl)
 CURL_LIBDIR=$(pkg-config --variable=libdir libcurl)
 
 # Construct full path to Homebrew libcurl dylib (adjust filename if needed)
-CURL_DYLIB_PATH="${CURL_LIBDIR}/libcurl.4.dylib"
+CURL_DYLIB_PATH="/opt/homebrew/opt/curl/lib/libcurl.4.dylib"
 if [[ ! -f "$CURL_DYLIB_PATH" ]]; then
-    echo "Error: Homebrew libcurl dylib not found at $CURL_DYLIB_PATH"
-    # Try common alternative name
-     CURL_DYLIB_PATH="${CURL_LIBDIR}/libcurl.dylib"
-     if [[ ! -f "$CURL_DYLIB_PATH" ]]; then
-        echo "Error: Homebrew libcurl dylib not found at ${CURL_LIBDIR}/libcurl.dylib either."
+    CURL_DYLIB_PATH="/opt/homebrew/opt/curl/lib/libcurl.dylib"
+    if [[ ! -f "$CURL_DYLIB_PATH" ]]; then
+        echo "Error: Homebrew libcurl dylib not found at $CURL_DYLIB_PATH"
         exit 1
-     fi
+    fi
 fi
 echo "Attempting to link directly against: ${CURL_DYLIB_PATH}"
 
