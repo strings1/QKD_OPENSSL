@@ -174,6 +174,9 @@ if alice_key_data and bob_key_data:
 else:
      print("\n  Could not retrieve key status from one or both nodes after waiting.")
 
+# curl -X POST http://192.168.1.137:5000/send_encrypted_message \
+#   -H "Content-Type: application/json" \
+#   -d '{"key_handle": "065c246a74f649f6", "message": "Hello Raluca!"}'
 
 # Step 4: Close connection
 if key_handle:
