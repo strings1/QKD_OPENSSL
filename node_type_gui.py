@@ -4,6 +4,7 @@
 
 import time
 import os
+import cv2
 try:
     import tkinter as tk
 except ImportError:
@@ -66,10 +67,59 @@ class QKD_Node_GUI(QKD_Node):
             # Ensure window cleanup even on errors
             root.destroy()
         
-    def read(self):
+    def read(self, num_bits):
         print("Reading data from GUI node...")
-        # This method should be implemented by reading colors from a web-camera
-        # I do not have one yet so no implementation for this method
+        """
+        Reads a specified number of bits/colors using the webcam.
+        For each interval, captures a frame, reads the center pixel,
+        and decides the predominant color (Red, Green, Blue).
+        """
+        print(f"Reading {num_bits} bits from GUI node using webcam...")
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            print("Error: Could not open webcam.")
+            return None
+
+        detected_colors = []
+        try:
+            for i in range(num_bits):
+                ret, frame = cap.read()
+                if not ret:
+                    print(f"Error: Failed to capture frame {i+1}.")
+                    detected_colors.append('Off')
+                    continue
+
+                # Get center pixel
+                h, w, _ = frame.shape
+                center_pixel = frame[h // 2, w // 2]
+                b, g, r = int(center_pixel[0]), int(center_pixel[1]), int(center_pixel[2])
+
+                # Decide predominant color
+                if r > g and r > b and r > 50:
+                    color = 'Red'
+                elif g > r and g > b and g > 50:
+                    color = 'Green'
+                elif b > r and b > g and b > 50:
+                    color = 'Blue'
+                else:
+                    color = 'Off'
+
+                detected_colors.append(color)
+                print(f"Bit {i+1}/{num_bits}: Center pixel RGB=({r},{g},{b}) -> Detected: {color}")
+
+                # Show frame with a dot at the center for user feedback (optional)
+                cv2.circle(frame, (w // 2, h // 2), 5, (0, 255, 255), -1)
+                cv2.imshow('QKD Webcam Read', frame)
+                if cv2.waitKey(int(self.TIME_BETWEEN * 1000)) & 0xFF == ord('q'):
+                    print("Interrupted by user.")
+                    break
+
+            print(f"Read finished. Detected colors: {detected_colors}")
+            return detected_colors
+
+        finally:
+            cap.release()
+            cv2.destroyAllWindows()
 
     def write(self, hex_data):
         print(f"Writing data to GUI node: {hex_data}")
