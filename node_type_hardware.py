@@ -148,9 +148,7 @@ class QKD_Node_Hardware(QKD_Node):
             while intervals_read < num_bits:
                 cycle_start = time.monotonic()
 
-                # --- Call the simplified read_interval ---
                 detected_color = self.read_interval()
-                # --- End call ---
 
                 detected_colors.append(detected_color)
                 intervals_read += 1
