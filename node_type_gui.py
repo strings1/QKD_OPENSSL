@@ -16,8 +16,9 @@ class QKD_Node_GUI(QKD_Node):
     '''
     This class should be used for desktop Client/Server
     '''
-    def __init__(self, time_between=1.0):
+    def __init__(self, time_between=1.0, min_intensity=50):
         self.TIME_BETWEEN = time_between
+        self.MIN_INTENSITY = min_intensity
 
     def calibrate(self, n=5):
         # Create a window to display RED, GREEN, BLUE n times
@@ -95,11 +96,11 @@ class QKD_Node_GUI(QKD_Node):
                 b, g, r = int(center_pixel[0]), int(center_pixel[1]), int(center_pixel[2])
 
                 # Decide predominant color
-                if r > g and r > b and r > 50:
+                if r > g and r > b and r > self.MIN_INTENSITY:
                     color = 'Red'
-                elif g > r and g > b and g > 50:
+                elif g > r and g > b and g > self.MIN_INTENSITY:
                     color = 'Green'
-                elif b > r and b > g and b > 50:
+                elif b > r and b > g and b > self.MIN_INTENSITY:
                     color = 'Blue'
                 else:
                     color = 'Off'
