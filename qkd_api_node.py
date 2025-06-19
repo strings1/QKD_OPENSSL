@@ -16,6 +16,7 @@ import hashlib
 import threading
 import argparse # For command-line arguments
 from aes.aes import AES
+import base64
 
 # --- QKD Node Imports ---
 try:
@@ -719,39 +720,52 @@ def send_encrypted_message():
     if conn_info.get("status") != "ready" or not sifted_key_hex:
         return jsonify({"status": 3, "error": "Key not ready or is empty"}), 400
 
-    # --- Key Derivation ---
-    # Use SHA-256 to derive a cryptographically strong, fixed-size key
-    # from the variable-length sifted QKD key. This is more secure
-    # than padding or truncating the key.
-    key_deriver = hashlib.sha256()
-    key_deriver.update(sifted_key_hex.encode('utf-8'))
-    key_bytes = key_deriver.digest() # 32 bytes, for AES-256
-
-    # --- Message Padding (assuming AES implementation needs 16-byte blocks) ---
-    msg_bytes = message.encode("utf-8")
-    # Note: This logic truncates messages longer than 16 bytes.
-    # For a real chat app, a streaming cipher mode like AES-CBC or AES-GCM
-    # would be needed to handle messages of any length.
-    if len(msg_bytes) > 16:
-        msg_bytes = msg_bytes[:16]
-    elif len(msg_bytes) < 16:
-        msg_bytes = msg_bytes.ljust(16, b'\0')
-
-    ciphertext = AES.encrypt(msg_bytes, key_bytes)
-    ciphertext_hex = ciphertext.hex()
-
-    # Send to peer
     try:
+        # --- Key Derivation (Consistent with previous version) ---
+        key_deriver = hashlib.sha256()
+        key_deriver.update(sifted_key_hex.encode('utf-8'))
+        key_bytes = key_deriver.digest() # 32 bytes, for AES-256
+
+        # --- AES-CBC Encryption ---
+        # 1. Generate a random 16-byte IV
+        iv = os.urandom(16)
+
+        # 2. Pad the message to a multiple of 16 bytes (PKCS#7)
+        message_bytes = message.encode('utf-8')
+        padding_len = 16 - (len(message_bytes) % 16)
+        padded_message = message_bytes + bytes([padding_len]) * padding_len
+
+        # 3. Encrypt block by block using the existing AES.encrypt for single blocks
+        ciphertext_bytes = b''
+        previous_block = iv
+        for i in range(0, len(padded_message), 16):
+            block = padded_message[i:i+16]
+            block_to_encrypt = bytes(x ^ y for x, y in zip(block, previous_block))
+            encrypted_block = AES.encrypt(block_to_encrypt, key_bytes)
+            ciphertext_bytes += encrypted_block
+            previous_block = encrypted_block
+
+        # 4. Prepend IV to ciphertext and encode to Base64 for safe transport
+        final_payload = iv + ciphertext_bytes
+        ciphertext_b64 = base64.b64encode(final_payload).decode('utf-8')
+
+        # Send to peer
         resp = requests.post(
             f"{config['peer_url']}/receive_encrypted_message",
-            json={"key_handle": key_handle, "ciphertext": ciphertext_hex},
+            json={"key_handle": key_handle, "ciphertext": ciphertext_b64},
             timeout=5
         )
         resp.raise_for_status()
-    except Exception as e:
-        return jsonify({"status": 4, "error": f"Failed to send to peer: {e}"}), 500
 
-    return jsonify({"status": 0, "ciphertext": ciphertext_hex})
+        # Return the base64 ciphertext to the original caller (the frontend)
+        return jsonify({"status": 0, "ciphertext": ciphertext_b64})
+
+    except requests.exceptions.RequestException as e:
+        return jsonify({"status": 4, "error": f"Failed to send to peer: {e}"}), 500
+    except Exception as e:
+        print(f"Encryption Error in send_encrypted_message: {e}")
+        # Return a more specific error message
+        return jsonify({"status": 4, "error": f"Encryption failed: {str(e)}"}), 500
 
 
 @app.route('/receive_encrypted_message', methods=['POST'])
@@ -759,8 +773,8 @@ def receive_encrypted_message():
     global connections, received_messages
     data = request.json
     key_handle = data.get("key_handle")
-    ciphertext_hex = data.get("ciphertext")
-    if not key_handle or not ciphertext_hex:
+    ciphertext_b64 = data.get("ciphertext")
+    if not key_handle or not ciphertext_b64:
         return jsonify({"status": 1, "error": "Missing key_handle or ciphertext"}), 400
     if key_handle not in connections:
         return jsonify({"status": 2, "error": "Invalid key_handle"}), 400
@@ -771,21 +785,47 @@ def receive_encrypted_message():
     if conn_info.get("status") != "ready" or not sifted_key_hex:
         return jsonify({"status": 3, "error": "Key not ready or is empty"}), 400
 
-    # --- Key Derivation ---
-    # Use the exact same key derivation process as the sender.
-    key_deriver = hashlib.sha256()
-    key_deriver.update(sifted_key_hex.encode('utf-8'))
-    key_bytes = key_deriver.digest() # 32 bytes, for AES-256
-
-    ciphertext = bytes.fromhex(ciphertext_hex)
     try:
-        plaintext = AES.decrypt(ciphertext, key_bytes).rstrip(b'\0').decode("utf-8")
-    except Exception as e:
-        return jsonify({"status": 4, "error": f"Decryption failed: {e}"}), 400
+        # --- Key Derivation (Must be identical to sender's) ---
+        key_deriver = hashlib.sha256()
+        key_deriver.update(sifted_key_hex.encode('utf-8'))
+        key_bytes = key_deriver.digest()
 
-    received_messages.append(plaintext)
-    print(f"Received message: {plaintext}")
-    return jsonify({"status": 0, "message": plaintext})
+        # --- AES-CBC Decryption ---
+        # 1. Decode from Base64 and extract IV
+        payload_bytes = base64.b64decode(ciphertext_b64)
+        iv = payload_bytes[:16]
+        ciphertext_bytes = payload_bytes[16:]
+
+        if len(ciphertext_bytes) % 16 != 0:
+            raise ValueError("Ciphertext length is not a multiple of the block size.")
+
+        # 2. Decrypt block by block
+        decrypted_padded_bytes = b''
+        previous_block = iv
+        for i in range(0, len(ciphertext_bytes), 16):
+            block = ciphertext_bytes[i:i+16]
+            decrypted_block_xor = AES.decrypt(block, key_bytes)
+            plaintext_block = bytes(x ^ y for x, y in zip(decrypted_block_xor, previous_block))
+            decrypted_padded_bytes += plaintext_block
+            previous_block = block
+
+        # 3. Unpad the message (PKCS#7)
+        padding_len = decrypted_padded_bytes[-1]
+        if padding_len > 16 or padding_len == 0:
+            raise ValueError("Invalid PKCS#7 padding value.")
+        if decrypted_padded_bytes[-padding_len:] != bytes([padding_len]) * padding_len:
+            raise ValueError("Invalid PKCS#7 padding.")
+        
+        plaintext = decrypted_padded_bytes[:-padding_len].decode('utf-8')
+
+        received_messages.append(plaintext)
+        print(f"Received message: {plaintext}")
+        return jsonify({"status": 0, "message": plaintext})
+
+    except Exception as e:
+        print(f"Decryption Error in receive_encrypted_message: {e}")
+        return jsonify({"status": 4, "error": f"Decryption failed: {str(e)}"}), 400
 
 
 @app.route('/messages', methods=['GET'])
