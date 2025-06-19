@@ -712,23 +712,31 @@ def send_encrypted_message():
         return jsonify({"status": 1, "error": "Missing key_handle or message"}), 400
     if key_handle not in connections:
         return jsonify({"status": 2, "error": "Invalid key_handle"}), 400
+    
     conn_info = connections[key_handle]
-    if conn_info.get("status") != "ready" or not conn_info.get("sifted_key"):
-        return jsonify({"status": 3, "error": "Key not ready"}), 400
+    sifted_key_hex = conn_info.get("sifted_key")
 
-    if len(conn_info["sifted_key"]) < 32:
-    # Pad with zeros if needed
-        padded_key = conn_info["sifted_key"].ljust(32, '0')
-    else:
-        padded_key = conn_info["sifted_key"][:32]
-    key_bytes = bytes.fromhex(padded_key)
+    if conn_info.get("status") != "ready" or not sifted_key_hex:
+        return jsonify({"status": 3, "error": "Key not ready or is empty"}), 400
 
+    # --- Key Derivation ---
+    # Use SHA-256 to derive a cryptographically strong, fixed-size key
+    # from the variable-length sifted QKD key. This is more secure
+    # than padding or truncating the key.
+    key_deriver = hashlib.sha256()
+    key_deriver.update(sifted_key_hex.encode('utf-8'))
+    key_bytes = key_deriver.digest() # 32 bytes, for AES-256
 
+    # --- Message Padding (assuming AES implementation needs 16-byte blocks) ---
     msg_bytes = message.encode("utf-8")
+    # Note: This logic truncates messages longer than 16 bytes.
+    # For a real chat app, a streaming cipher mode like AES-CBC or AES-GCM
+    # would be needed to handle messages of any length.
     if len(msg_bytes) > 16:
         msg_bytes = msg_bytes[:16]
     elif len(msg_bytes) < 16:
         msg_bytes = msg_bytes.ljust(16, b'\0')
+
     ciphertext = AES.encrypt(msg_bytes, key_bytes)
     ciphertext_hex = ciphertext.hex()
 
@@ -756,11 +764,19 @@ def receive_encrypted_message():
         return jsonify({"status": 1, "error": "Missing key_handle or ciphertext"}), 400
     if key_handle not in connections:
         return jsonify({"status": 2, "error": "Invalid key_handle"}), 400
+    
     conn_info = connections[key_handle]
-    if conn_info.get("status") != "ready" or not conn_info.get("sifted_key"):
-        return jsonify({"status": 3, "error": "Key not ready"}), 400
+    sifted_key_hex = conn_info.get("sifted_key")
 
-    key_bytes = bytes.fromhex(conn_info["sifted_key"][:32])
+    if conn_info.get("status") != "ready" or not sifted_key_hex:
+        return jsonify({"status": 3, "error": "Key not ready or is empty"}), 400
+
+    # --- Key Derivation ---
+    # Use the exact same key derivation process as the sender.
+    key_deriver = hashlib.sha256()
+    key_deriver.update(sifted_key_hex.encode('utf-8'))
+    key_bytes = key_deriver.digest() # 32 bytes, for AES-256
+
     ciphertext = bytes.fromhex(ciphertext_hex)
     try:
         plaintext = AES.decrypt(ciphertext, key_bytes).rstrip(b'\0').decode("utf-8")
