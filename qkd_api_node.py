@@ -8,6 +8,7 @@
 #======================================================================#
 
 from flask import Flask, jsonify, request, render_template_string
+from flask_cors import CORS # For cross-origin requests (Hackathon)
 import time
 import requests
 import os
@@ -38,6 +39,7 @@ DEFAULT_RAW_KEY_MULTIPLIER = 4     # Generate more raw bits than needed for sift
 # --- End Configuration ---
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes (Hackathon)
 
 # --- Global State ---
 config = {} # Will hold runtime configuration
