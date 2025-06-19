@@ -721,10 +721,12 @@ def send_encrypted_message():
         return jsonify({"status": 3, "error": "Key not ready or is empty"}), 400
 
     try:
-        # --- Key Derivation (Consistent with previous version) ---
+        # --- Key Derivation ---
+        # Use SHA-256 to derive a key, but truncate to 16 bytes (128 bits)
+        # to match the requirement of the AES-128 implementation.
         key_deriver = hashlib.sha256()
         key_deriver.update(sifted_key_hex.encode('utf-8'))
-        key_bytes = key_deriver.digest() # 32 bytes, for AES-256
+        key_bytes = key_deriver.digest()[:16] # Use first 16 bytes for AES-128
 
         # --- AES-CBC Encryption ---
         # 1. Generate a random 16-byte IV
@@ -787,9 +789,11 @@ def receive_encrypted_message():
 
     try:
         # --- Key Derivation (Must be identical to sender's) ---
+        # Use SHA-256 to derive a key, but truncate to 16 bytes (128 bits)
+        # to match the requirement of the AES-128 implementation.
         key_deriver = hashlib.sha256()
         key_deriver.update(sifted_key_hex.encode('utf-8'))
-        key_bytes = key_deriver.digest()
+        key_bytes = key_deriver.digest()[:16] # Use first 16 bytes for AES-128
 
         # --- AES-CBC Decryption ---
         # 1. Decode from Base64 and extract IV
