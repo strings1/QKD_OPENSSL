@@ -12,7 +12,7 @@ SRC_FILE="template_engine.c"
 DYLIB_NAME="libtemplate.dylib"
 CONFIG_FILE="openssl_template.cnf"
 ENGINE_ID="template"
-QKD_URL="http://127.0.0.1:5000" # Example URL - CHANGE IF NEEDED
+QKD_URL="http://192.168.1.141:5001"
 
 # --- Check for Dependencies ---
 if ! command -v pkg-config &> /dev/null; then

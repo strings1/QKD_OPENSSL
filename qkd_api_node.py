@@ -362,8 +362,6 @@ def sift_key(key_handle):
     print(f"  Estimated QBER (Basis Mismatch Rate): {qber_basis_mismatch:.2f}%") # Note: This isn't the final bit error rate
     print(f"  Raw Sifted Key Length: {len(sifted_key_bin)} bits")
     print(f"  Sifted Key (hex, first 16): {sifted_key_hex[:16]}...")
-    # TODO: Add error correction and privacy amplification here if needed based on QBER
-
 # --- End QKD Protocol Logic ---
 
 
@@ -375,6 +373,7 @@ def qkd_open():
     global connections, config
     data = request.json
     key_handle = data.get("key_handle")
+
     # Use configured default key length
     requested_length = config.get('key_length_bits', DEFAULT_KEY_LENGTH_BITS)
 
@@ -565,7 +564,7 @@ def qkd_check_peer_connection():
     global connections
     key_handle = request.json.get("key_handle")
     if key_handle not in connections:
-        return jsonify({"peer_ready": False}), 400 # Or status 2?
+        return jsonify({"peer_ready": False}), 400
 
     # "Ready" means this node has also called connect_blocking
     is_ready = connections[key_handle].get("local_connected", False)
