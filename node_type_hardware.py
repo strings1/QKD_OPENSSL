@@ -62,8 +62,8 @@ class QKD_Node_Hardware(QKD_Node):
             'Green': GREEN_PIN,
             'Blue': BLUE_PIN
         }
-        self.last_color = None # For sensor reading optimization
-        GPIO.output(TCS_LED, GPIO.LOW) # Turn off TCS LED (Ensure this pin exists in settings.py)
+        self.last_color = None
+        GPIO.output(TCS_LED, GPIO.LOW) # Turn off TCS LED 
         try:
             self.i2c = busio.I2C(board.SCL, board.SDA)
             self.oled = adafruit_ssd1306.SSD1306_I2C(128, 64, self.i2c)
@@ -104,7 +104,7 @@ class QKD_Node_Hardware(QKD_Node):
         # Optional: print(f"    _read_color({color}): {count} pulses in {time.monotonic() - read_start_time:.4f}s")
         return count
 
-    # --- SIMPLIFIED read_interval ---
+
     def read_interval(self):
         """Reads R, G, B once and determines the dominant color."""
         interval_start_time = time.monotonic()
@@ -130,7 +130,6 @@ class QKD_Node_Hardware(QKD_Node):
         # print(f"Detected: {dominant_color} | Readings: {readings} | Actual Interval: {actual_duration:.3f}s")
 
         return dominant_color
-    # --- End SIMPLIFIED read_interval ---
 
     def read(self, num_bits):
         """
@@ -193,7 +192,6 @@ class QKD_Node_Hardware(QKD_Node):
 
         try:
             # No Start Signal needed
-            # Optional short delay before starting data transmission
             # time.sleep(self.TIME_BETWEEN / 2)
 
             for i, bit in enumerate(data):
@@ -317,7 +315,7 @@ if __name__ == "__main__":
 
         # Example usage of QKD_Node_Hardware - DISPLAY
         node = QKD_Node_Hardware(time_between=1.0)  # Set time_between to 1 second
-        node.screen_Display("Hello, QKD!")
+        #node.screen_Display("Hello, QKD!")
 
     except Exception as e:
         print(f"An error occurred: {e}")
