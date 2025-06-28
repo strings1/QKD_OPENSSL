@@ -43,7 +43,7 @@ echo "Using pkg-config flags for: ${OPENSSL_PC_NAME}, libcurl" # Add , jansson i
 # Get CFLAGS (include paths etc)
 CFLAGS=$(pkg-config --cflags ${OPENSSL_PC_NAME} libcurl) # Add jansson if used
 # Get LIBS (library paths and names)
-LIBS=$(pkg-config --libs ${OPENSSL_PC_NAME} libcurl)     # Add jansson if used
+LIBS=$(pkg-config --libs ${OPENSSL_PC_NAME} libcurl)
 
 
 # --- Paths for Script ---
@@ -132,7 +132,7 @@ OPENSSL_BIN=$(pkg-config --variable=prefix ${OPENSSL_PC_NAME})/bin/openssl
 OPENSSL_CONF=${TEMP_CONFIG_PATH} \
 OPENSSL_MODULES=${SCRIPT_DIR} \
 LD_LIBRARY_PATH=${SCRIPT_DIR} \
-${OPENSSL_BIN} rand -engine ${ENGINE_ID} -hex 16
+${OPENSSL_BIN} rand -engine ${ENGINE_ID} -hex 8
 
 if [[ $? -ne 0 ]]; then
     echo "--------------------------------------------------"

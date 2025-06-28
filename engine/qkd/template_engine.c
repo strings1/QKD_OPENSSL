@@ -17,33 +17,36 @@
 // Jansson Headers (Optional - Recommended)
 // #include <jansson.h> // Uncomment if using jansson
 
-typedef struct {
-    char* url;
-    char* key_handle;
+typedef struct
+{
+    char *url;
+    char *key_handle;
 } connect_args_t;
 static char *perform_post(const char *url, const char *post_data, char **handle_out, unsigned char **key_out, size_t *key_len_out);
-void* connect_node(void* arg) {
-    connect_args_t* args = (connect_args_t*)arg;
-    
-    char* connect_url = NULL;
-    char* connect_payload = NULL;
-    char* connect_response = NULL;
-    
-    if (asprintf(&connect_url, "%s/qkd_connect_blocking", args->url) < 0) 
+void *connect_node(void *arg)
+{
+    connect_args_t *args = (connect_args_t *)arg;
+
+    char *connect_url = NULL;
+    char *connect_payload = NULL;
+    char *connect_response = NULL;
+
+    if (asprintf(&connect_url, "%s/qkd_connect_blocking", args->url) < 0)
         return NULL;
-    if (asprintf(&connect_payload, "{\"key_handle\": \"%s\"}", args->key_handle) < 0) {
+    if (asprintf(&connect_payload, "{\"key_handle\": \"%s\"}", args->key_handle) < 0)
+    {
         free(connect_url);
         return NULL;
     }
-    
+
     printf("Template Engine: Connecting node %s...\n", args->url);
     connect_response = perform_post(connect_url, connect_payload, NULL, NULL, NULL);
     free(connect_url);
     free(connect_payload);
-    
+
     if (connect_response)
         free(connect_response);
-    
+
     return NULL;
 }
 
@@ -176,7 +179,6 @@ static char *perform_post(const char *url, const char *post_data, char **handle_
         }
         else if (key_out && key_len_out)
         {
-            // ... (parsing logic for key_buffer - unchanged) ...
             char *p = strstr(response_body, "\"key_buffer\"");
             if (p)
             {
@@ -187,30 +189,20 @@ static char *perform_post(const char *url, const char *post_data, char **handle_
                     char *q = strchr(p, '"');
                     if (q)
                     {
-                        size_t base64_len = q - p;
-                        *key_out = malloc(base64_len);
+                        size_t hex_len = q - p;
+                        *key_len_out = hex_len / 2;
+                        *key_out = malloc(*key_len_out);
                         if (*key_out)
                         {
-                            char *base64_str = strndup(p, base64_len);
-                            if (base64_str)
+                            for (size_t i = 0; i < *key_len_out; i++)
                             {
-                                *key_len_out = EVP_DecodeBlock(*key_out, (const unsigned char *)base64_str, base64_len);
-                                free(base64_str);
-                                if ((int)*key_len_out < 0)
-                                {
-                                    fprintf(stderr, "Template Engine: Base64 decode failed.\n");
-                                    free(*key_out);
-                                    *key_out = NULL;
-                                    *key_len_out = 0;
-                                }
+                                sscanf(&p[i * 2], "%2hhx", &((*key_out)[i]));
                             }
-                            else
-                            {
-                                fprintf(stderr, "Template Engine: strndup failed.\n");
-                                free(*key_out);
-                                *key_out = NULL;
-                                *key_len_out = 0;
-                            }
+                        }
+                        else
+                        {
+                            fprintf(stderr, "Template Engine: malloc failed for key_out.\n");
+                            *key_len_out = 0;
                         }
                     }
                 }
@@ -232,12 +224,11 @@ static char *perform_post(const char *url, const char *post_data, char **handle_
 // Returns 0 on success, -1 on error
 static int template_engine_connect()
 {
-if (!qkd_service_url)
+    if (!qkd_service_url)
     {
         fprintf(stderr, "Template Engine: Service URL not set.\n");
         return -1;
     }
-
 
     char *open_url = NULL;
     char *open_response = NULL;
@@ -255,33 +246,32 @@ if (!qkd_service_url)
     printf("Template Engine: Got Key Handle: %s\n", qkd_key_handle);
     free(open_response);
 
-
     printf("Template Engine: Starting parallel connections for Alice and Bob...\n");
-    
 
     pthread_t alice_thread, bob_thread;
-    connect_args_t alice_args = { qkd_service_url, qkd_key_handle };
-    connect_args_t bob_args = { "http://192.168.1.137:5000", qkd_key_handle };
-    
+    connect_args_t alice_args = {qkd_service_url, qkd_key_handle};
+    connect_args_t bob_args = {"http://192.168.1.137:5000", qkd_key_handle};
+
     // Pornește thread-urile
-    if (pthread_create(&alice_thread, NULL, connect_node, &alice_args) != 0) {
+    if (pthread_create(&alice_thread, NULL, connect_node, &alice_args) != 0)
+    {
         fprintf(stderr, "Template Engine: Failed to create Alice thread\n");
         goto connect_err;
     }
-    
-    if (pthread_create(&bob_thread, NULL, connect_node, &bob_args) != 0) {
+
+    if (pthread_create(&bob_thread, NULL, connect_node, &bob_args) != 0)
+    {
         fprintf(stderr, "Template Engine: Failed to create Bob thread\n");
 
         pthread_cancel(alice_thread);
         goto connect_err;
     }
-    
 
     printf("Template Engine: Waiting for connection threads to complete...\n");
     pthread_join(alice_thread, NULL);
     pthread_join(bob_thread, NULL);
     printf("Template Engine: Both nodes connected successfully.\n");
-    
+
     return 0; // Success
 
 connect_err:
@@ -289,7 +279,7 @@ connect_err:
     if (qkd_key_handle)
     {
         char *close_url = NULL, *close_payload = NULL;
-        if (asprintf(&close_url, "%s/qkd_close", qkd_service_url) >= 0 && 
+        if (asprintf(&close_url, "%s/qkd_close", qkd_service_url) >= 0 &&
             asprintf(&close_payload, "{\"key_handle\": \"%s\"}", qkd_key_handle) >= 0)
         {
             printf("Template Engine: Attempting cleanup close...\n");
@@ -312,23 +302,24 @@ static int template_engine_fetch_key()
         fprintf(stderr, "Template Engine: Not connected.\n");
         return -1;
     }
-    
+
     // Clear old buffer if exists
     free(qkd_key_buffer);
     qkd_key_buffer = NULL;
     qkd_key_buffer_len = 0;
     qkd_key_buffer_pos = 0;
-    
+
     // Add retry mechanism with max attempts and delay
-    const int MAX_RETRY_ATTEMPTS = 30;       // Maximum number of retry attempts
-    const int RETRY_DELAY_SECONDS = 2;       // Delay between retries
+    const int MAX_RETRY_ATTEMPTS = 30; // Maximum number of retry attempts
+    const int RETRY_DELAY_SECONDS = 2; // Delay between retries
     int retry_count = 0;
-    
-    while (retry_count < MAX_RETRY_ATTEMPTS) {
+
+    while (retry_count < MAX_RETRY_ATTEMPTS)
+    {
         char *get_key_url = NULL;
         char *get_key_payload = NULL;
         char *get_key_response = NULL;
-        
+
         if (asprintf(&get_key_url, "%s/qkd_get_key", qkd_service_url) < 0)
             return -1;
         if (asprintf(&get_key_payload, "{\"key_handle\": \"%s\"}", qkd_key_handle) < 0)
@@ -336,46 +327,48 @@ static int template_engine_fetch_key()
             free(get_key_url);
             return -1;
         }
-        
+
         // Only show message on first try and every 5 retries
         if (retry_count == 0 || retry_count % 5 == 0)
-            printf("Template Engine: Fetching key via %s... (attempt %d/%d)\n", 
-                get_key_url, retry_count + 1, MAX_RETRY_ATTEMPTS);
-                
+            printf("Template Engine: Fetching key via %s... (attempt %d/%d)\n",
+                   get_key_url, retry_count + 1, MAX_RETRY_ATTEMPTS);
+
         get_key_response = perform_post(get_key_url, get_key_payload, NULL, &qkd_key_buffer, &qkd_key_buffer_len);
         free(get_key_url);
         free(get_key_payload);
-        
+
         // Check for success (we got a response and a key buffer)
-        if (get_key_response && qkd_key_buffer && qkd_key_buffer_len > 0) {
-            printf("Template Engine: Successfully fetched %zu bytes of key material after %d attempt(s).\n", 
-                qkd_key_buffer_len, retry_count + 1);
+        if (get_key_response && qkd_key_buffer && qkd_key_buffer_len > 0)
+        {
+            printf("Template Engine: Successfully fetched %zu bytes of key material after %d attempt(s).\n",
+                   qkd_key_buffer_len, retry_count + 1);
             free(get_key_response);
             qkd_key_buffer_pos = 0;
             return 0;
         }
-        
+
         // Free any partial response/buffer
         free(get_key_response);
         free(qkd_key_buffer);
         qkd_key_buffer = NULL;
         qkd_key_buffer_len = 0;
-        
+
         // If we get here, the key wasn't ready yet
         retry_count++;
-        
+
         // If we've hit max retries, break out and return error
-        if (retry_count >= MAX_RETRY_ATTEMPTS) {
+        if (retry_count >= MAX_RETRY_ATTEMPTS)
+        {
             fprintf(stderr, "Template Engine: Failed to get key after %d attempts.\n", MAX_RETRY_ATTEMPTS);
             break;
         }
-        
+
         // Wait before retrying
-        printf("Template Engine: Key not ready yet, waiting %d seconds before retry %d/%d...\n", 
-            RETRY_DELAY_SECONDS, retry_count + 1, MAX_RETRY_ATTEMPTS);
+        printf("Template Engine: Key not ready yet, waiting %d seconds before retry %d/%d...\n",
+               RETRY_DELAY_SECONDS, retry_count + 1, MAX_RETRY_ATTEMPTS);
         sleep(RETRY_DELAY_SECONDS);
     }
-    
+
     // If we get here, all retries failed
     fprintf(stderr, "Template Engine: Failed to get key or key is empty after all retry attempts.\n");
     return -1;
