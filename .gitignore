@@ -7,3 +7,4 @@
 *.pyd
 *.pkl
 *.*
+node_modules
