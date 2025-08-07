@@ -7,6 +7,13 @@
 #define ENGINE_ID "template"
 #define ENGINE_NAME "Quantum Engine"
 
+
+/*
+NOTE: fisierul asta nu e folosit deloc in proiect
+dar am zis sa il las ca sa se vada de unde am pornit
+si unde am ajuns :) in qkd/template_engine.c este implementarea full
+asta e doar de test pe cand invatam sa fac engineul
+*/
 // Mandatory RAND methods
 static int template_rand_status(void) { return 1; }
 static int template_rand_seed(const void *buf, int num) { return 1; }

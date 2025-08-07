@@ -20,6 +20,18 @@ class QKD_Node_GUI(QKD_Node):
         self.TIME_BETWEEN = time_between
         self.MIN_INTENSITY = min_intensity
 
+        self.basis = ['+', 'X']
+        self.colors = {
+            self.basis[0]: {
+                '0': 'Blue',
+                '1': 'Green'
+            },
+            self.basis[1]: {
+                '0': 'Blue',
+                '1': 'Red'
+            }
+        }
+
     def calibrate(self, n=5):
         # Create a window to display RED, GREEN, BLUE n times
         root = tk.Tk()

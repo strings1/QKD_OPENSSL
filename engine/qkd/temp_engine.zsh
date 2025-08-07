@@ -4,15 +4,14 @@ export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/opt/homebrew/Cellar/curl/8.
 
 # Exit on first error
 set -e
-# Optional: uncomment below for very verbose script execution tracing
-# set -x
+
 
 # --- Configuration ---
 SRC_FILE="template_engine.c"
 DYLIB_NAME="libtemplate.dylib"
 CONFIG_FILE="openssl_template.cnf"
 ENGINE_ID="template"
-QKD_URL="http://192.168.1.141:5001"
+QKD_URL="http://raspberrypi.local:5001"
 
 # --- Check for Dependencies ---
 if ! command -v pkg-config &> /dev/null; then
@@ -20,12 +19,12 @@ if ! command -v pkg-config &> /dev/null; then
     exit 1
 fi
 # Check if pc files exist
-if ! pkg-config --exists openssl libcurl; then # Add jansson if needed
+if ! pkg-config --exists openssl libcurl; then # daca adaug si janson, trb adaugat aici
     echo "Error: pkg-config cannot find openssl or libcurl .pc files."
     echo "Ensure OpenSSL and libcurl development packages are installed correctly (e.g., brew install openssl@3 curl)."
     exit 1
 fi
-# Add check for jansson if used:
+# check for jansson daca schimb pana prezint proiectul
 # if ! pkg-config --exists jansson; then echo "Error: pkg-config cannot find jansson"; exit 1; fi
 
 
@@ -41,7 +40,7 @@ fi
 echo "Using pkg-config flags for: ${OPENSSL_PC_NAME}, libcurl" # Add , jansson if used
 
 # Get CFLAGS (include paths etc)
-CFLAGS=$(pkg-config --cflags ${OPENSSL_PC_NAME} libcurl) # Add jansson if used
+CFLAGS=$(pkg-config --cflags ${OPENSSL_PC_NAME} libcurl)
 # Get LIBS (library paths and names)
 LIBS=$(pkg-config --libs ${OPENSSL_PC_NAME} libcurl)
 
