@@ -38,7 +38,7 @@ The system is composed of three main parts that work together:
 ## Wiring
 
 For the raspberry pi approach, as said, you will need an RGB LED for Alice, a color sensor (TCS3200) for Bob, and optionally something to carry the RGB colors.
-![QuPiNet - Raspberry Wiring](README_Assets/RaspberryPiWiring-2.png)
+![QuPiNet - Raspberry Wiring](README_Assets/RaspberryPIWiring.png)
 
 ## Prerequisites
 
