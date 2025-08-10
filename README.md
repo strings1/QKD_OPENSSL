@@ -72,16 +72,20 @@ This is the core Python backend that simulates the QKD protocol. The web app nee
 
 **2. Start the QKD nodes.** You need to run each node in a **separate terminal window**.
 
-   **Terminal 1 (Start Alice):**
+   **Terminal:**
    ```bash
-   python qkd_api_node.py --port 5000 --peer-port 5001
+   python qkd_api_node.py --port <port> --peer-host <peer_ip> --peer-port <peer_port> \
+--node-type <hardware|gui> --time-between <seconds> \
+--key-len <bits> --raw-mult <multiplier>
    ```
+   - `--port`: The port number for this QKD node to listen on.
+   - `--peer-host`: The IP address or hostname of the peer QKD node.
+   - `--peer-port`: The port number of the peer QKD node.
+   - `--node-type`: Set to `hardware` for hardware simulation or `gui` to use your personal computer as a node (requires a webcam/a monitor for read/write).
+   - `--time-between`: Time interval (in seconds) between colors.
+   - `--key-len`: Length of the generated key in bits.
+   - `--raw-mult`: Multiplier for the number of raw bits generated per round.
 
-   **Terminal 2 (Start Bob):**
-   ```bash
-   python qkd_api_node.py --port 5001 --peer-port 5000
-   ```
-   
    Now both the web interface and the backend simulation are running. You can use the GUI to initiate a key exchange.
 
 ---
@@ -93,6 +97,7 @@ You can test the components independently to ensure they are working correctly.
 ### 1. Testing the Python API
 
 This test script runs a full key exchange between the two running nodes and verifies that their final keys match.
+Might require modifications based on your devices.
 
    **In a new, third terminal:**
    ```bash
@@ -109,3 +114,5 @@ This test validates that the C engine can be compiled, loaded by OpenSSL, and us
    ./run_template_engine.zsh
    ```
    This script will automatically compile the engine, configure OpenSSL to use it, request random bytes, and then clean up the temporary files. If it outputs a hex string without errors, the integration is successful.
+
+   Might also require modifications
