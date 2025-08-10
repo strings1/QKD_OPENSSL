@@ -4,22 +4,39 @@ QuPiNet is a multi-component project designed to simulate the BB84 Quantum Key D
 
 It features an interactive web interface, a robust Python backend that simulates the QKD nodes according to ETSI GS QKD 004 (used on Raspberry Pi's and personal computers), and a custom C-based OpenSSL engine that uses the generated quantum keys as a high-quality source of entropy.
 
+![QuPiNet - Raspberry Devices](README_Assets/RealDevice.png)
+
 Our system simulates quantum state transmission by mapping polarization bases (rectilinear and diagonal) to specific RGB LED colors. While the QKD nodes possess complete knowledge of this basis-to-color mapping, external observers cannot determine the bit values (0 or 1) from the observed colors alone, preserving the information-theoretic security fundamental to the BB84 protocol.
-## Project Demo
+
+To read the colors, we are using a TCS3200 color sensor.
+
+## Mapping Polarization axis to colors
 
 ![QuPiNet - Mapping polarization to colors](public/pictures/bb84/mapare.png)
 
 
 ## Credits
-The web interface for this project was developed in collaboration with Gabriela Brezeanu, Gabriel Scinteie, Ioana-Cristina Prioteasa, and Delia-Elena Barbuta during the [RoNaQCI Quantum Hackathon 2025 - Team VibeQoders](https://www.ronaqci.eu/hackathon/). Their work on the frontend was instrumental in creating an intuitive and educational user experience.
+The web interface for this project was developed in collaboration with:
+**Gabriela Brezeanu**  
+**Gabriel Scinteie**  
+**Ioana-Cristina Prioteasa**  
+**Delia-Elena Barbuta**
+ during the [RoNaQCI Quantum Hackathon 2025 - Team VibeQoders](https://www.ronaqci.eu/hackathon/). Their work on the frontend was instrumental in creating an intuitive and educational user experience.
+
+[RoNaQCI Hackathon QuPiNet Video](https://youtu.be/kUOuWcg-uX0)
 
 ## Project Architecture
 
 The system is composed of three main parts that work together:
 
 1.  **Node.js Web App**: The user-facing graphical interface (GUI) that allows users to visualize and control the QKD protocol. It communicates with the Python backend.
-2.  **Python QKD Network**: Two or more Flask-based Python servers that act as QKD nodes (e.g., Alice and Bob). They implement the BB84 protocol logic and expose a REST API for control.
+2.  **Python QKD Network**: Two or more Flask-based Python servers that act as QKD nodes (e.g., Alice and Bob). They implement the BB84 protocol logic based on ETSI GS QKD 004 and expose a REST API for control.
 3.  **OpenSSL Engine**: A custom engine written in C that plugs into OpenSSL. It fetches quantum keys from the Python QKD Network and provides them as a source for OpenSSL's random number generator.
+
+## Wiring
+
+For the raspberry pi approach, as said, you will need an RGB LED for Alice, a color sensor (TCS3200) for Bob, and optionally something to carry the RGB colors.
+![QuPiNet - Raspberry Wiring](README_Assets/RaspberryPiWiring-2.png)
 
 ## Prerequisites
 
@@ -86,7 +103,11 @@ This is the core Python backend that simulates the QKD protocol. The web app nee
    - `--key-len`: Length of the generated key in bits.
    - `--raw-mult`: Multiplier for the number of raw bits generated per round.
 
-   Now both the web interface and the backend simulation are running. You can use the GUI to initiate a key exchange.
+   Now both the web interface and the backend simulation are running. You can use the WEB GUI to initiate a key exchange.
+
+
+   Running on raspberry pi's, should look something like this:
+   ![QuPiNet - Running servers](README_Assets/running.png)
 
 ---
 
@@ -103,6 +124,7 @@ Might require modifications based on your devices.
    ```bash
    python test.py
    ```
+   ![QuPiNet - test.py](README_Assets/testpy.png)
 
 ### 2. Testing the OpenSSL Engine Integration
 
@@ -114,5 +136,9 @@ This test validates that the C engine can be compiled, loaded by OpenSSL, and us
    ./run_template_engine.zsh
    ```
    This script will automatically compile the engine, configure OpenSSL to use it, request random bytes, and then clean up the temporary files. If it outputs a hex string without errors, the integration is successful.
-
    Might also require modifications
+
+   ![QuPiNet - OpenSSL](README_Assets/openssl.png)
+
+   ## MISC
+   ![QuPiNet - OpenSSL](README_Assets/VibeQoders.png)
