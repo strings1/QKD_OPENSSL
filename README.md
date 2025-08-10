@@ -15,12 +15,14 @@ To read the colors, we are using a TCS3200 color sensor.
 ![QuPiNet - Mapping polarization to colors](public/pictures/bb84/mapare.png)
 
 
-## Credits
+# Credits
 The web interface for this project was developed in collaboration with:
+
 **Gabriela Brezeanu**  
 **Gabriel Scinteie**  
 **Ioana-Cristina Prioteasa**  
 **Delia-Elena Barbuta**
+
  during the [RoNaQCI Quantum Hackathon 2025 - Team VibeQoders](https://www.ronaqci.eu/hackathon/). Their work on the frontend was instrumental in creating an intuitive and educational user experience.
 
 [RoNaQCI Hackathon QuPiNet Video](https://youtu.be/kUOuWcg-uX0)
