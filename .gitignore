@@ -6,5 +6,5 @@
 *.pyo
 *.pyd
 *.pkl
-*.*
+.*
 node_modules
